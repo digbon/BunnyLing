@@ -1,7 +1,7 @@
 /* BunnyLing · Service Worker
- * v10 — shell (HTML/CSS/JS) + runtime (CDN) con caches separadas.
+ * v11 — shell + runtime con caches separadas.
  */
-const VER = 'v10';
+const VER = 'v11';
 const CSSHELL = `bunnyling-shell-${VER}`;
 const CRUNTIME = `bunnyling-runtime-${VER}`;
 
@@ -59,4 +59,3 @@ self.addEventListener('fetch', e => {
     })
   );
 });
-
