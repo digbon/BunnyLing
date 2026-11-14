@@ -2,9 +2,8 @@
 'use strict';
 
 // Sube la versión al cambiar el HTML/CSS/JS del shell para invalidar el caché viejo.
-// v2.6.2 — 🤔 ahora es un toggle: 1er toque revela subtítulos en tiempo real y empieza
-//          a marcar una sección confusa; 2º toque termina y guarda el segmento.
-const CACHE_VERSION = 'bunnyling-v2.6.2';
+// v2.6.3 — Optimización de la barra de controles (mejor uso del espacio).
+const CACHE_VERSION = 'bunnyling-v2.6.3';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
