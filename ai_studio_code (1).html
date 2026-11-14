@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f0f13">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="bunnyling-logo.svg">
+<link rel="alternate icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>BunnyLing</title>
+<style>
+:root{--bg:#0f0f13;--card:#1c1c24;--line:#2a2a35;--ac:#7654e8;--tx:#e0e0e0;--mu:#8b8799}
+*{box-sizing:border-box;margin:0}
+[hidden]{display:none!important}
+body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);height:100dvh;display:flex;flex-direction:column;max-width:48rem;margin:auto;padding-top:env(safe-area-inset-top)}
+::selection{background:var(--ac);color:#fff}
+header{padding:10px 12px;display:flex;align-items:center;justify-content:center;gap:9px;border-bottom:1px solid var(--line);font-weight:800;font-size:1.2rem;color:#fff;min-height:58px}
+header .brand-logo{display:block;width:35px;height:35px;object-fit:contain;flex:0 0 auto;border-radius:6px}
+header .brand-name{letter-spacing:-.035em}
+header .brand-name i{color:var(--ac);font-style:normal}
+main{flex:1;min-height:0}
+h1{font-size:1.5rem;margin-bottom:12px}
+.view{display:none;height:100%;overflow:auto;padding:16px}
+.view.on{display:block}
+#v-player{padding:0}
+#info{padding:10px 16px 6px}
+#info small{display:block;color:var(--mu);font-size:.75rem}
+
+/* Reproductor fijo (corregido: antes un \n literal rompía este selector) */
+#media{position:sticky;top:0;z-index:3;background:var(--bg);padding:0 16px 8px}
+#vid{width:100%;max-height:36vh;border-radius:12px;background:#000;display:block}
+#pcv{display:block;margin:0 auto;max-width:100%;max-height:36vh;width:auto;height:auto;background:#fff;border-radius:8px}
+
+/* Cuenta regresiva para subtítulos externos */
+#countdown-wrap{padding:8px 16px 10px;text-align:center;background:var(--bg);border-bottom:1px solid var(--line)}
+#countdown-video{width:min(100%,320px);max-height:20vh;object-fit:contain;border-radius:12px;background:#000;display:block;margin:0 auto 6px}
+#subs-time-row{display:none;gap:6px;align-items:center;width:100%}
+body[data-k=subs] #subs-time-row{display:flex}
+#subs-time{margin:0;min-width:0;flex:1;padding:7px 10px}
+
+#text{padding:8px 16px 28px}
+.p{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 12px 12px;margin-bottom:10px;color:#a0a0a0;cursor:pointer;white-space:pre-wrap;transition:border-color .15s,background .15s;position:relative}
+.p .tx{line-height:1.9;padding-top:6px}
+.p.on{border-color:var(--ac);background:#241d3a;color:var(--tx)}
+.p img{display:block;max-width:100%;height:auto;margin:10px auto;border-radius:8px}
+body[data-k=doc] .p{cursor:text;color:var(--tx)}
+.run{border-radius:3px;padding:1px 0;transition:background .12s,color .12s}
+.run.on{background:#3a2f66;color:#fff}
+.tr{margin-top:8px;padding-top:8px;border-top:1px solid #7654e84d;font-size:.85em;font-weight:400;color:#a0a0a0;line-height:1.5}
+.tr:empty,#text.orig .tr,#text.hid .tr,#text.hid .p{display:none}
+#text.hid::before{content:"Subtítulos ocultos. Cámbialo en CC o marca dudas con 🤔.";display:block;text-align:center;color:var(--mu);padding:24px}
+
+/* Revelado temporal durante sección confusa */
+body.confuse-reveal #text.hid .p.on{display:block}
+body.confuse-reveal #text.hid .p.on .tr:not(:empty){display:block}
+body.confuse-reveal #text.hid::before{display:none}
+#confuseTimeline{display:none;position:relative;margin:14px 0 20px;padding:14px 12px;background:var(--card);border:1px solid var(--line);border-radius:12px}
+#text.hid #confuseTimeline{display:block}
+#confuseTimeline .ct-title{font-size:.75rem;color:var(--mu);margin-bottom:10px}
+#confuseTimeline .ct-track{height:12px;background:#343440;border-radius:8px;position:relative;margin:12px 0 10px}
+#confuseTimeline .ct-seg{position:absolute;top:0;height:100%;min-width:6px;border:0;border-radius:5px;padding:0;background:#b9a8f5;opacity:.9}
+#confuseTimeline .ct-seg.active{background:#fbbf24;box-shadow:0 0 0 2px #fff}
+#confuseTimeline .ct-list{display:flex;flex-direction:column;gap:6px}
+#confuseTimeline .ct-item{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:#252431;padding:8px 10px;font-size:.75rem}
+#confuseTimeline .ct-item span{color:var(--mu);font-weight:400}
+
+.empty{text-align:center;color:var(--mu);padding:24px;font-size:.85rem}
+button{font:inherit;font-weight:700;font-size:.8rem;color:#fff;background:var(--line);border:0;border-radius:10px;padding:9px 12px;cursor:pointer}
+button:active{transform:scale(.96)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac)}
+button.pri{background:var(--ac)}
+button.dng{color:#f87171}
+button.sel{outline:2px solid var(--ac)}
+button.dash{width:100%;margin-top:8px;background:0;border:1px dashed var(--line);color:var(--mu)}
+button:disabled{opacity:.5;pointer-events:none}
+.row{display:flex;gap:8px;align-items:center}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;margin-bottom:12px}
+.card .row{margin-bottom:6px}
+.card .row>:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mu{color:var(--mu);font-size:.8rem}
+.wd{color:#b9a8f5;font-size:1.1rem}
+label{display:block;color:var(--mu);font-size:.8rem}
+input,select{width:100%;background:var(--bg);color:#fff;border:1px solid var(--line);border-radius:10px;padding:9px;font:inherit;margin:4px 0 14px}
+input[type=range]{padding:0;border:0;margin:0;accent-color:var(--ac)}
+
+#bar{display:none;border-top:1px solid var(--line);padding:8px 16px;gap:8px;flex-direction:column}
+body[data-v=player][data-k=media] #bar,body[data-v=player][data-k=doc] #bar,body[data-v=player][data-k=subs] #bar{display:flex}
+.m,.d,.narr{display:none}
+body[data-k=media] .m,body[data-k=subs] .m,body[data-k=doc] .d{display:flex}
+body[data-narr="1"] .narr{display:flex}
+body[data-narr="1"] .d{display:none!important}
+.row.m,.row.d,.row.narr{justify-content:space-between}
+.row.m{flex-wrap:wrap}
+.d #ta{flex:1}
+#pv,#nx{display:none}
+body[data-d=pdf] #pv,body[data-d=pdf] #nx{display:block}
+#tm,#ntm{font-size:.7rem;color:var(--mu);white-space:nowrap}
+#pp{width:48px;height:48px;border-radius:50%;font-size:1.1rem}
+#narrbar input[type=range]{flex:1;min-width:0}
+#narrbar button{padding:8px 10px;min-width:0;flex-shrink:0}
+
+nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{background:0;color:var(--mu);border-radius:0;padding:9px 2px;font-size:.75rem;line-height:1.15}
+nav button.sel{color:var(--ac);outline:0}
+#ntw{position:relative;height:0;z-index:4}
+#nt{position:absolute;right:4px;top:0;background:0;color:var(--ac);font-size:.85rem;padding:4px 10px}
+body.nonav nav{display:none}
+body.nonav #ntw{height:28px;margin-bottom:env(safe-area-inset-bottom)}
+
+dialog{background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:18px;padding:16px;width:min(92vw,28rem);margin:auto}
+dialog::backdrop{background:#000b}
+dialog h2{font-size:1.1rem;margin-bottom:10px}
+dialog h3{font-size:.8rem;color:var(--mu);margin:14px 0 6px}
+dialog .row button{flex:1}
+.opt{width:100%;text-align:left;margin-bottom:6px;background:var(--bg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#fr{max-height:55vh;overflow:auto;margin-bottom:8px}
+#fr .opt{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.4;display:block}
+mark{background:#b9a8f5;color:#0f0f13;border-radius:2px;padding:0 2px;font-weight:700}
+
+#pop{position:fixed;left:50%;transform:translateX(-50%);bottom:150px;width:92%;max-width:28rem;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;z-index:6;box-shadow:0 10px 40px #000a}
+#pop p{margin:6px 0 12px;color:#e0e0e0;font-size:.9rem;white-space:pre-wrap;max-height:28vh;overflow:auto}
+#pop p:empty{margin:4px 0 8px}
+#p-x{position:absolute;top:4px;right:6px;background:0;color:var(--mu);padding:6px 10px;font-size:1.05rem;line-height:1;min-width:0;font-weight:400;z-index:2}
+#p-x:hover{color:#fff}
+#pw{padding-right:34px;display:block;word-break:break-word}
+#p-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+#p-btns button{flex:1;min-width:130px;line-height:1.25}
+#toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#2a1f45;border:1px solid var(--ac);padding:10px 16px;border-radius:12px;font-size:.8rem;z-index:9;max-width:90vw;text-align:center}
+
+/* Diccionario y colores de palabras */
+.state-new{color:#60a5fa}
+.state-learning{color:#fbbf24}
+.state-known{color:#34d399}
+.state-problematic{color:#f87171}
+.dict-filters{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;-webkit-overflow-scrolling:touch}
+.dict-filters button{padding:6px 10px;font-size:.72rem;white-space:nowrap;background:var(--bg);border:1px solid var(--line);flex-shrink:0}
+.dict-filters button.sel{background:var(--ac);border-color:var(--ac)}
+#dsort,#dq{margin:6px 0 0}
+#dstats{color:var(--mu);font-size:.75rem;margin:8px 0}
+.dict-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.dict-actions button{font-size:.7rem;padding:6px 10px}
+.dict-tr{color:#b9a8f5;font-size:.8rem;margin-top:4px;white-space:pre-line}
+
+/* Historial de lectura por palabra (etiqueta por CSS sin ensuciar la selección de texto) */
+.rw{color:#60a5fa;transition:color .15s}
+.rw[data-s=learning]{color:#fbbf24}
+.rw[data-s=known]{color:#7dd3a8}
+.rw[data-s=problematic]{color:#f87171}
+.rw.wa{background:#ffffff26;box-shadow:0 2px 0 currentColor;border-radius:3px}
+body[data-k=media] .rw,body[data-k=subs] .rw,body[data-narr="1"] .rw{cursor:pointer}
+
+.rw.hword{position:relative;border-bottom:2px solid #f59e0b;padding:0 1px;margin-inline:2px;transition:color .15s,border-color .15s,background .15s}
+.rw.hword.hread{border-bottom-color:#b06bff}
+.rw.hword.hstart::before,.rw.hword.hend::after{content:"";position:absolute;bottom:-4px;width:5px;height:5px;border-radius:50%;background:#f59e0b;pointer-events:none}
+.rw.hword.hstart::before{left:-2px}
+.rw.hword.hend::after{right:-2px}
+.rw.hword.hread.hstart::before,.rw.hword.hread.hend::after{background:#b06bff}
+.rw.hword .hbadge{position:absolute;left:50%;top:-15px;transform:translateX(-50%);font:700 9px/1 ui-monospace,monospace;color:#f59e0b;white-space:nowrap;pointer-events:none;user-select:none;-webkit-user-select:none}
+.rw.hword .hbadge::before{content:attr(data-b)}
+.rw.hword.hread .hbadge{color:#c49aff}
+.rw.hword.hpicked{background:#fbbf24!important;color:#111!important;border-radius:3px;box-shadow:0 0 0 2px #fbbf24;z-index:2}
+
+.mk{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.mk .mktools{display:flex;gap:6px;flex:1;justify-content:flex-end}
+.mk .mktools button{min-width:38px;padding:9px 10px}
+.mk #readpct{flex:1;min-width:72px;color:var(--mu);font-size:.75rem;margin-left:4px}
+#mark.sel{background:var(--ac)}
+
+#confuse{display:none}
+body[data-k=media][data-cc=hid] #confuse,body[data-k=subs][data-cc=hid] #confuse{display:inline-block}
+#confuse.sel{background:var(--ac);box-shadow:0 0 0 2px #fbbf24}
+
+.session-stats{display:flex;justify-content:space-around;align-items:center;text-align:center;padding:8px 0}
+.session-stats .num{font-size:2.2rem;font-weight:800;line-height:1;color:#fff}
+.session-stats .num.accent{color:var(--ac)}
+.session-stats .lbl{color:var(--mu);font-size:.75rem;margin-top:6px}
+#s-log p{padding:6px 0;border-bottom:1px solid var(--line);font-size:.8rem}
+#s-log p:last-child{border-bottom:0}
+#s-log p.is-current{color:var(--ac);font-weight:600}
+</style>
+</head>
+<body data-v="player" data-k="" data-d="" data-narr="0" data-cc="orig">
+<main>
+  <section id="v-player" class="view on">
+    <header aria-label="BunnyLing">
+      <img class="brand-logo" src="bunnyling-logo.svg" alt="BunnyLing">
+      <span class="brand-name">BunnyLing<i>.</i></span>
+    </header>
+    <div id="info" class="row">
+      <div style="flex:1;min-width:0;overflow:hidden">
+        <b id="ttl">Ningún archivo abierto</b>
+        <small id="sub">Elige un archivo en Biblioteca</small>
+      </div>
+    </div>
+    <div id="media" hidden>
+      <video id="vid" playsinline></video>
+      <canvas id="pcv" hidden></canvas>
+    </div>
+    <div id="countdown-wrap" hidden>
+      <video id="countdown-video" playsinline preload="auto" src="countdown.mp4"></video>
+      <small class="mu" id="countdown-msg">Cuenta regresiva: al llegar a 0 iniciará el reloj de subtítulos</small>
+    </div>
+    <div id="text"></div>
+  </section>
+
+  <section id="v-library" class="view">
+    <h1>Biblioteca</h1>
+    <button id="imp" class="pri">＋ Importar material</button>
+    <div id="lib" style="margin-top:16px"></div>
+  </section>
+
+  <section id="v-words" class="view">
+    <h1>Diccionario</h1>
+    <div class="card">
+      <div class="dict-filters" id="dfil">
+        <button data-f="all" class="sel">Todas</button>
+        <button data-f="new">🔵 Nuevas</button>
+        <button data-f="learning">🟡 Aprendiendo</button>
+        <button data-f="known">🟢 Conocidas</button>
+        <button data-f="problematic">🔴 Problemáticas</button>
+      </div>
+      <select id="dsort">
+        <option value="freq">Por frecuencia</option>
+        <option value="recent">Por última vista</option>
+        <option value="alpha">Alfabético</option>
+      </select>
+      <input id="dq" type="search" placeholder="Buscar palabra…" autocomplete="off" spellcheck="false">
+    </div>
+    <div id="dstats"></div>
+    <div id="wl"></div>
+    <button id="d-reset" class="dash">↺ Reiniciar conteo de palabras</button>
+  </section>
+
+  <section id="v-sessions" class="view">
+    <h1>Sesiones</h1>
+    <div class="card">
+      <div class="session-stats">
+        <div><div class="num" id="s-total">0</div><div class="lbl">Sesiones históricas</div></div>
+        <div><div class="num accent" id="s-daily">0</div><div class="lbl">Sesiones hoy</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><b>Sesión actual</b></div>
+      <p class="mu" id="s-current" style="margin-bottom:10px">Sin sesión activa</p>
+      <button id="s-new-btn" class="pri" style="width:100%">＋ Crear nueva sesión</button>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><b>Historial reciente</b></div>
+      <div id="s-log"></div>
+    </div>
+  </section>
+
+  <section id="v-settings" class="view">
+    <h1>Ajustes</h1>
+    <button id="inst" class="pri" hidden style="margin-bottom:14px">📲 Instalar BunnyLing</button>
+    <label>Idioma que aprendo<select id="c-src"></select></label>
+    <label>Idioma que hablo<select id="c-tgt"></select></label>
+    <label>Segundos de salto (⏪ ⏩)<input id="c-sk" type="number" min="1" max="300" inputmode="numeric"></label>
+    <label>Clave de Gemini<input id="c-gk" type="password" autocomplete="off"></label>
+    <label>Modelo de Gemini<input id="c-gm" list="gms" autocomplete="off"></label>
+    <datalist id="gms">
+      <option value="gemini-3.5-flash-lite">
+      <option value="gemini-3.8-flash">
+      <option value="gemini-4-hydrogen">
+      <option value="gemini-4-argon">
+    </datalist>
+    <label>Clave de Deepgram<input id="c-dk" type="password" autocomplete="off"></label>
+    <label>Modelo de Deepgram (transcripción)<select id="c-dm"><option>nova-3</option><option>nova-2</option></select></label>
+    <label>Modelo de voz Deepgram (TTS)<input id="c-dtts" value="aura-2-thalia-en" autocomplete="off" placeholder="aura-2-thalia-en"></label>
+    <label>Carpeta de la biblioteca</label>
+    <p id="dn" style="margin:4px 0 8px">Almacenamiento interno de la app</p>
+    <div class="row" style="margin-bottom:18px">
+      <button id="d-pick" class="pri">📂 Elegir carpeta</button>
+      <button id="d-sync">↻ Sincronizar</button>
+      <button id="d-off" class="dng">Quitar</button>
+    </div>
+    <button id="c-save" class="pri">Guardar cambios</button>
+    <p class="mu" style="margin-top:12px">Las claves se guardan solo en este dispositivo.</p>
+  </section>
+</main>
+
+<div id="bar">
+  <div class="row m" id="subs-time-row">
+    <input id="subs-time" type="text" inputmode="text" placeholder="Ir a 00:12:35" aria-label="Tiempo manual">
+    <button id="subs-goto" class="pri">Ir</button>
+    <button id="subs-cd" title="Cuenta regresiva de 5 s para sincronizar">⏱ 5s</button>
+  </div>
+  <div class="row m">
+    <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Posición">
+    <span id="tm">0:00 / 0:00</span>
+  </div>
+  <div class="row m">
+    <button id="spd">1x</button>
+    <button class="lk" aria-label="Traducir selección">❓</button>
+    <button id="bk" aria-label="Atrasar">⏪</button>
+    <button id="pp" class="pri" aria-label="Reproducir">▶</button>
+    <button id="fw" aria-label="Adelantar">⏩</button>
+    <button id="cc">CC</button>
+    <button class="find-btn" aria-label="Buscar en el texto" title="Buscar en el texto">🔍</button>
+    <button id="confuse" aria-label="Sección confusa" title="Marcar y revelar sección confusa">🤔</button>
+  </div>
+  <div class="row d">
+    <button id="pv" aria-label="Página anterior">◀</button>
+    <button id="ta" class="pri">🌐 Traducir todo</button>
+    <button id="doc-audio" class="pri">🔊 Narrar</button>
+    <button class="lk" aria-label="Traducir selección">❓</button>
+    <button id="nx" aria-label="Página siguiente">▶</button>
+    <button class="find-btn" aria-label="Buscar en el texto" title="Buscar en el texto">🔍</button>
+  </div>
+  <div class="row narr" id="narrbar">
+    <button id="n-prev" aria-label="Párrafo anterior">⏮</button>
+    <button id="n-play" class="pri" aria-label="Reproducir/Pausar">▶</button>
+    <button id="n-next" aria-label="Párrafo siguiente">⏭</button>
+    <input id="nseek" type="range" min="0" max="1000" value="0" aria-label="Progreso de narración">
+    <span id="ntm">0/0</span>
+    <button class="lk" aria-label="Traducir selección">❓</button>
+    <button id="n-reset" class="dng" aria-label="Regenerar narración" title="Borrar audios guardados y regenerar">↺</button>
+    <button id="n-stop" class="dng" aria-label="Detener narración">✕</button>
+  </div>
+  <div class="row mk">
+    <span id="readpct"></span>
+    <div class="mktools">
+      <button id="mark" class="pri" aria-label="Iniciar marcado de lectura" title="Marcar fragmento leído">✂️</button>
+      <button id="mk-confirm" class="pri" hidden aria-label="Confirmar extremo">✓</button>
+      <button id="mk-cancel" class="dng" hidden aria-label="Deseleccionar extremo">✕</button>
+      <button id="mk-plus" aria-label="Sumar una lectura a la selección" title="Sumar lectura">+x1</button>
+      <button id="mk-minus" aria-label="Restar una lectura a la selección" title="Restar lectura">−x1</button>
+    </div>
+  </div>
+  <p id="mk-hint" class="mu" hidden style="padding:0 8px 4px;text-align:center"></p>
+</div>
+
+<div id="ntw"><button id="nt" aria-label="Ocultar menú">▼</button></div>
+<nav>
+  <button data-v="player" class="sel">▶<br>Lector</button>
+  <button data-v="library">▤<br>Biblioteca</button>
+  <button data-v="words">✧<br>Diccionario</button>
+  <button data-v="sessions">◎<br>Sesiones</button>
+  <button data-v="settings">⚙<br>Ajustes</button>
+</nav>
+
+<dialog id="sd">
+  <h2>Subtítulos</h2>
+  <div id="sl"></div>
+  <div class="row" id="sd-media-btns" style="margin-top:8px">
+    <button id="su">📁 Subir</button>
+    <button id="ai">🤖 Transcribir con IA</button>
+  </div>
+  <h3>Editar texto (selecciona primero en el lector)</h3>
+  <div class="row">
+    <button id="e-rep" aria-label="Reemplazar el texto seleccionado">✏️</button>
+    <button id="e-mrg" aria-label="Unir con el subtítulo anterior">🔗</button>
+    <button id="e-un" aria-label="Deshacer">↶</button>
+    <button id="e-re" aria-label="Rehacer">↷</button>
+  </div>
+  <p class="mu" style="margin-top:6px">✏️ reemplaza lo seleccionado. 🔗 sube al subtítulo anterior todo hasta la última palabra seleccionada.</p>
+  <button id="e-rst" class="dng" style="width:100%;margin-top:8px">↺ Restablecer subtítulos originales</button>
+  <h3>Modo</h3>
+  <div class="row" id="md">
+    <button data-m="hid">Ocultar</button>
+    <button data-m="orig">Original</button>
+    <button data-m="bi">+ Traducción</button>
+  </div>
+  <button id="sx" style="width:100%;margin-top:14px;background:0;color:var(--mu)">Cerrar</button>
+</dialog>
+
+<dialog id="fnd">
+  <h2>🔍 Buscar en el texto</h2>
+  <input id="fq" type="search" placeholder="Texto a buscar…" autocomplete="off" enterkeyhint="search" spellcheck="false">
+  <div id="fr"></div>
+  <button id="fx" style="width:100%;background:0;color:var(--mu)">Cerrar</button>
+</dialog>
+
+<dialog id="cdlg">
+  <h2>Sección confusa guardada</h2>
+  <p class="mu" id="c-info" style="margin-bottom:12px"></p>
+  <div class="row" style="gap:8px;flex-wrap:wrap">
+    <button id="c-reveal" class="pri" style="flex:1;min-width:110px">🔁 Revelar</button>
+    <button id="c-remark" class="pri" style="flex:1;min-width:110px">Marcar de nuevo</button>
+    <button id="c-delete" class="dng" style="flex:1;min-width:110px">Eliminar</button>
+    <button id="c-close" style="flex:1;min-width:110px;background:0;color:var(--mu)">Cancelar</button>
+  </div>
+</dialog>
+
+<dialog id="sess-dlg">
+  <h2>¿Continuar la sesión?</h2>
+  <p class="mu" style="margin-bottom:12px">Ha pasado un tiempo desde que dejaste la app. ¿Continuar con la sesión actual o crear una nueva?</p>
+  <div class="row" style="gap:8px">
+    <button id="sess-continue" class="pri" style="flex:1">Continuar sesión</button>
+    <button id="sess-dlg-new" class="pri" style="flex:1">Nueva sesión</button>
+  </div>
+</dialog>
+
+<div id="pop" hidden>
+  <button id="p-x" aria-label="Cerrar">✕</button>
+  <b id="pw" class="wd"></b>
+  <p id="pm"></p>
+  <button id="p-audio" class="pri" style="width:100%;margin-bottom:8px">🔊 Escuchar</button>
+  <div id="p-btns">
+    <button id="p-ai" class="pri">🤖 Traducir con IA</button>
+    <button id="p-dict">📖 Diccionario</button>
+    <button id="p-trad">🌐 Traductor tradicional</button>
+  </div>
+  <div id="p-ask" class="row">
+    <button id="p-no" class="dng" style="flex:1">No la conozco ❌</button>
+    <button id="p-yes" class="pri" style="flex:1">Ya la conozco ✓</button>
+  </div>
+  <div id="p-act" class="row" hidden>
+    <button id="pc" style="flex:1">Cerrar</button>
+  </div>
+</div>
+
+<div id="toast" hidden></div>
+<input type="file" id="fi" multiple hidden accept=".txt,.pdf,.epub,.srt,.vtt,.json,.mp3,.wav,.m4a,.ogg,.aac,.flac,.mp4,.webm,.mov,audio/*,video/*">
+<input type="file" id="si" hidden accept=".srt,.vtt,.txt,.json">
+
+<script src="core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
