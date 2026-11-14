@@ -1,0 +1,1750 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f1117" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="bunnyling-logo.svg" />
+  <link rel="alternate icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <title>BunnyLing — Lector e Inmersión de Idiomas</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --card: #181b24;
+      --line: #272b38;
+      --ac: #7c5cff;
+      --tx: #e2e8f0;
+      --mu: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    [hidden] { display: none !important; }
+    body {
+      font: 15px/1.6 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--tx);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      max-width: 56rem;
+      margin: 0 auto;
+      padding-top: env(safe-area-inset-top);
+    }
+    ::selection { background: var(--ac); color: #fff; }
+    header {
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      min-height: 56px;
+    }
+    header .brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 1.15rem; color: #fff; }
+    header .brand-logo { width: 38px; height: 32px; object-fit: contain; }
+    header .brand i { color: var(--ac); font-style: normal; }
+    main { flex: 1; min-height: 0; }
+    h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 14px; }
+    .view { display: none; height: 100%; overflow: auto; padding: 16px; }
+    .view.on { display: block; }
+    #v-player { padding: 0; }
+    #info { padding: 10px 16px 6px; }
+    #info small { display: block; color: var(--mu); font-size: .75rem; }
+    #countdown-wrap {
+      padding: 12px 16px;
+      text-align: center;
+      background: var(--card);
+      border-bottom: 1px solid var(--line);
+    }
+    #countdown-ring {
+      width: 64px; height: 64px; margin: 0 auto 6px;
+      border-radius: 50%; border: 3px solid var(--ac);
+      display: grid; place-items: center;
+      font-weight: 800; font-size: 1.4rem; color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+    #subs-time-row { display: none; gap: 8px; align-items: center; width: 100%; }
+    body[data-k="subs"] #subs-time-row { display: flex; }
+    #subs-time { margin: 0; min-width: 0; flex: 1; }
+    #media { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 0 16px 8px; }
+    #vid { width: 100%; max-height: 36vh; border-radius: 12px; background: #000; display: block; }
+    #pcv { display: block; margin: 0 auto; max-width: 100%; max-height: 36vh; background: #fff; border-radius: 8px; }
+    #text { padding: 10px 16px 28px; }
+    .p {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 10px;
+      color: #cbd5e1;
+      cursor: pointer;
+      white-space: pre-wrap;
+      transition: border-color .15s, background .15s;
+      position: relative;
+    }
+    .p.on { border-color: var(--ac); background: #211d36; color: #fff; }
+    .p img { display: block; max-width: 100%; height: auto; margin: 10px auto; border-radius: 8px; }
+    body[data-k="doc"] .p { cursor: text; color: var(--tx); }
+    .run { border-radius: 4px; padding: 1px 2px; transition: background .12s, color .12s; }
+    .run.on { background: rgba(124, 92, 255, .28); color: #fff; }
+    .tr { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(124, 92, 255, .3); font-size: .88em; color: var(--mu); }
+    .tr:empty, #text.orig .p:not(.trs) .tr, #text.hid .tr, #text.hid .p, .p.trh .tr { display: none; }
+    .segh { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 14px 0 6px; font-size: .72rem; color: var(--mu); user-select: none; -webkit-user-select: none; }
+    .segh button, .trb { background: transparent; border: 1px solid var(--line); color: var(--mu); font-size: .72rem; padding: 4px 9px; user-select: none; -webkit-user-select: none; }
+    .trb { margin-top: 6px; }
+    .tr:empty + .trb, #text.hid .trb, #text.hid .segh { display: none; }
+    #text.hid::before {
+      content: "Subtítulos ocultos para práctica auditiva. Pulsa CC para mostrarlos o 🤔 para marcar una sección confusa.";
+      display: block; text-align: center; color: var(--mu); padding: 24px; font-size: .85rem;
+    }
+    body.confuse-reveal #text.hid .p.on,
+    body.confuse-reveal #text.hid .p.on .tr { display: block; }
+    body.confuse-reveal #text.hid::before { display: none; }
+    #confuseTimeline {
+      display: none; margin: 16px 0 24px; padding: 14px;
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    }
+    #text.hid #confuseTimeline { display: block; }
+    .ct-title { font-size: .75rem; color: var(--mu); margin-bottom: 10px; }
+    .ct-track { height: 12px; background: #2a2f40; border-radius: 8px; position: relative; margin: 10px 0; }
+    .ct-seg { position: absolute; top: 0; height: 100%; min-width: 6px; border: 0; border-radius: 5px; padding: 0; background: #a78bfa; }
+    .ct-seg.active { background: #fbbf24; box-shadow: 0 0 0 2px #fff; }
+    .ct-list { display: flex; flex-direction: column; gap: 6px; }
+    .ct-item { display: flex; justify-content: space-between; align-items: center; background: #222634; padding: 8px 10px; font-size: .78rem; }
+    .empty { text-align: center; color: var(--mu); padding: 28px 16px; font-size: .88rem; }
+    button {
+      font: inherit; font-weight: 600; font-size: .8rem; color: #fff;
+      background: var(--line); border: 0; border-radius: 10px; padding: 9px 12px;
+      cursor: pointer; transition: transform .12s, opacity .12s;
+    }
+    button:active { transform: scale(.97); }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--ac); }
+    button.pri { background: var(--ac); }
+    button.dng { color: #f87171; }
+    button.sel { outline: 2px solid var(--ac); }
+    button.dash { width: 100%; margin-top: 8px; background: transparent; border: 1px dashed var(--line); color: var(--mu); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .row { display: flex; gap: 8px; align-items: center; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+    .mu { color: var(--mu); font-size: .8rem; }
+    .wd { color: #c4b5fd; font-size: 1.08rem; }
+    label { display: block; color: var(--mu); font-size: .8rem; }
+    input, select {
+      width: 100%; background: var(--bg); color: #fff; border: 1px solid var(--line);
+      border-radius: 10px; padding: 9px 11px; font: inherit; margin: 4px 0 14px;
+    }
+    input[type="range"] { padding: 0; border: 0; margin: 0; accent-color: var(--ac); }
+    #bar { display: none; border-top: 1px solid var(--line); padding: 8px 16px; gap: 8px; flex-direction: column; }
+    body[data-v="player"][data-k="media"] #bar,
+    body[data-v="player"][data-k="doc"] #bar,
+    body[data-v="player"][data-k="subs"] #bar { display: flex; }
+    .m, .d, .narr { display: none; }
+    body[data-k="media"] .m, body[data-k="subs"] .m, body[data-k="doc"] .d { display: flex; }
+    body[data-narr="1"] .narr { display: flex; }
+    body[data-narr="1"] .d { display: none !important; }
+    .row.m, .row.d, .row.narr { justify-content: space-between; }
+    .row.m { flex-wrap: wrap; }
+    .d #ta { flex: 1; }
+    #pv, #nx { display: none; }
+    body[data-d="pdf"] #pv, body[data-d="pdf"] #nx { display: block; }
+    #tm, #ntm { font-size: .72rem; color: var(--mu); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    #pp { width: 46px; height: 46px; border-radius: 50%; font-size: 1.05rem; }
+    nav { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+    nav button { background: transparent; color: var(--mu); border-radius: 0; padding: 10px 4px; font-size: .74rem; line-height: 1.2; }
+    nav button.sel { color: var(--ac); outline: 0; }
+    #ntw { position: relative; height: 0; z-index: 3; }
+    #nt { position: absolute; right: 6px; top: 0; background: transparent; color: var(--ac); font-size: .82rem; padding: 4px 10px; }
+    body.nonav nav { display: none; }
+    body.nonav #ntw { height: 28px; margin-bottom: env(safe-area-inset-bottom); }
+    dialog {
+      background: var(--card); color: var(--tx); border: 1px solid var(--line);
+      border-radius: 18px; padding: 18px; width: min(92vw, 28rem); margin: auto;
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, .72); }
+    dialog h2 { font-size: 1.08rem; margin-bottom: 10px; }
+    dialog h3 { font-size: .8rem; color: var(--mu); margin: 14px 0 6px; }
+    .opt { width: 100%; text-align: left; margin-bottom: 6px; background: var(--bg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #fr { max-height: 52vh; overflow: auto; margin-bottom: 8px; }
+    #fr .opt { white-space: normal; overflow: visible; line-height: 1.4; display: block; }
+    mark { background: #c4b5fd; color: #0f1117; border-radius: 3px; padding: 0 2px; font-weight: 700; }
+    #pop {
+      position: fixed; left: 50%; transform: translateX(-50%); bottom: 145px;
+      width: 92%; max-width: 28rem; background: var(--card); border: 1px solid var(--line);
+      border-radius: 16px; padding: 14px; z-index: 5; box-shadow: 0 12px 40px rgba(0, 0, 0, .65);
+    }
+    #pop p { margin: 6px 0 12px; font-size: .9rem; white-space: pre-wrap; max-height: 26vh; overflow: auto; }
+    #p-x { position: absolute; top: 6px; right: 8px; background: transparent; color: var(--mu); padding: 6px 10px; }
+    #p-word-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+    #p-word-btns button { flex: 1; min-width: 130px; }
+    #toast {
+      position: fixed; top: 68px; left: 50%; transform: translateX(-50%);
+      background: #281f47; border: 1px solid var(--ac); padding: 10px 16px;
+      border-radius: 12px; font-size: .82rem; z-index: 9; max-width: 90vw; text-align: center;
+    }
+    .state-new { color: #60a5fa; }
+    .state-learning { color: #fbbf24; }
+    .state-known { color: #34d399; }
+    .state-problematic { color: #f87171; }
+    .dict-filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 8px; }
+    .dict-filters button { padding: 6px 10px; font-size: .74rem; white-space: nowrap; background: var(--bg); border: 1px solid var(--line); flex-shrink: 0; }
+    .dict-filters button.sel { background: var(--ac); border-color: var(--ac); }
+    .dict-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .dict-tr { color: #c4b5fd; font-size: .82rem; margin-top: 4px; white-space: pre-line; }
+    .rw { color: #60a5fa; transition: color .15s; }
+    .rw[data-s="learning"] { color: #fbbf24; }
+    .rw[data-s="known"] { color: #6ee7b7; }
+    .rw[data-s="problematic"] { color: #f87171; }
+    .rw.wa { background: rgba(255, 255, 255, .16); box-shadow: 0 2px 0 currentColor; border-radius: 3px; }
+    .rw.hword { position: relative; border-bottom: 2px solid rgba(245, 158, 11, .7); padding: 0 1px; margin-inline: 2px; }
+    .rw.hword.hread { border-bottom-color: #a855f7; }
+    .rw.hword.hstart::before, .rw.hword.hend::after {
+      content: ""; position: absolute; bottom: -4px; width: 5px; height: 5px; border-radius: 50%; background: #f59e0b;
+    }
+    .rw.hword.hstart::before { left: -2px; }
+    .rw.hword.hend::after { right: -2px; }
+    .rw.hword.hread.hstart::before, .rw.hword.hread.hend::after { background: #a855f7; }
+    .rw.hword .hbadge {
+      position: absolute; left: 50%; top: -16px; transform: translateX(-50%);
+      font: 700 9px/1 ui-monospace, monospace; color: #f59e0b; white-space: nowrap; pointer-events: none;
+    }
+    .rw.hword.hread .hbadge { color: #c084fc; }
+    .rw.hword.hpicked { background: #fbbf24 !important; color: #0f1117 !important; border-radius: 3px; box-shadow: 0 0 0 2px #fbbf24; z-index: 2; }
+    .mk { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .mk .mktools { display: flex; gap: 6px; flex: 1; justify-content: flex-end; }
+    #readpct { color: var(--mu); font-size: .75rem; font-variant-numeric: tabular-nums; }
+    #confuse { display: none; }
+    body[data-k="media"][data-cc="hid"] #confuse { display: inline-block; }
+    .session-stats { display: flex; justify-content: space-around; text-align: center; padding: 8px 0; }
+    .session-stats .num { font-size: 2rem; font-weight: 800; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+    .session-stats .num.accent { color: var(--ac); }
+    .session-stats .lbl { color: var(--mu); font-size: .75rem; margin-top: 6px; }
+    #s-log p { padding: 6px 0; border-bottom: 1px solid var(--line); font-size: .8rem; }
+    #s-log p:last-child { border-bottom: 0; }
+    #s-log p.is-current { color: var(--ac); font-weight: 600; }
+  </style>
+<script src="/_aistudio-iframe.js?v=1f94f900"></script></head>
+<body data-v="player" data-k="" data-d="" data-narr="0" data-cc="orig">
+<main>
+  <section id="v-player" class="view on">
+    <header>
+      <div class="brand">
+        <img class="brand-logo" src="bunnyling-logo.svg" alt="Logo de BunnyLing" />
+        <span>BunnyLing<i>.</i></span>
+      </div>
+      <div style="text-align:right;min-width:0">
+        <b id="ttl" style="font-size:.88rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Ningún archivo abierto</b>
+        <small id="sub" class="mu">Elige o importa material en Biblioteca</small>
+        <small id="seginfo" class="mu" style="display:block"></small>
+      </div>
+    </header>
+    <div id="media" hidden>
+      <video id="vid" playsinline></video>
+      <canvas id="pcv" hidden></canvas>
+    </div>
+    <div id="countdown-wrap" hidden>
+      <div id="countdown-ring">5</div>
+      <small class="mu">Sincronizador visual: prepara la reproducción en tu otro dispositivo</small>
+    </div>
+    <div id="text">
+      <p class="empty">Abre Biblioteca para importar tus videos, audios, libros EPUB/PDF/TXT o subtítulos SRT/VTT.</p>
+    </div>
+  </section>
+
+  <section id="v-library" class="view">
+    <h1>Biblioteca</h1>
+    <button id="imp" class="pri">＋ Importar material</button>
+    <div id="lib" style="margin-top:16px"></div>
+  </section>
+
+  <section id="v-words" class="view">
+    <h1>Diccionario</h1>
+    <div class="card">
+      <div class="dict-filters" id="dfil">
+        <button data-f="all" class="sel">Todas</button>
+        <button data-f="new">Nuevas</button>
+        <button data-f="learning">Aprendiendo</button>
+        <button data-f="known">Conocidas</button>
+        <button data-f="problematic">Problemáticas</button>
+      </div>
+      <select id="dsort" aria-label="Ordenar vocabulario">
+        <option value="freq">Por frecuencia</option>
+        <option value="recent">Por última vista</option>
+        <option value="alpha">Alfabético</option>
+      </select>
+      <input id="dq" type="search" placeholder="Buscar palabra…" autocomplete="off" spellcheck="false" />
+    </div>
+    <div id="dstats" class="mu" style="margin:8px 0"></div>
+    <div id="wl"></div>
+    <button id="d-reset" class="dash">↺ Reiniciar conteo de palabras</button>
+  </section>
+
+  <section id="v-sessions" class="view">
+    <h1>Sesiones</h1>
+    <div class="card">
+      <div class="session-stats">
+        <div>
+          <div class="num" id="s-total">0</div>
+          <div class="lbl">Sesiones históricas</div>
+        </div>
+        <div>
+          <div class="num accent" id="s-daily">0</div>
+          <div class="lbl">Sesiones hoy</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><b>Sesión actual</b></div>
+      <p class="mu" id="s-current" style="margin-bottom:10px">Sin sesión activa</p>
+      <button id="s-new-btn" class="pri" style="width:100%">＋ Crear nueva sesión</button>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px"><b>Historial reciente</b></div>
+      <div id="s-log"></div>
+    </div>
+  </section>
+
+  <section id="v-settings" class="view">
+    <h1>Ajustes</h1>
+    <button id="inst" class="pri" hidden style="margin-bottom:14px;width:100%">Instalar BunnyLing (PWA)</button>
+    <label>Idioma que aprendo<select id="c-src"></select></label>
+    <label>Idioma que hablo<select id="c-tgt"></select></label>
+    <label>Segundos de salto (⏪ ⏩)<input id="c-sk" type="number" min="1" max="300" inputmode="numeric" /></label>
+    <h3 style="margin:6px 0 4px">Servicios de IA</h3>
+    <p class="mu" style="margin-bottom:10px">Las claves se guardan solo en este dispositivo. Las listas de modelos y voces se piden directamente a Gemini y Deepgram.</p>
+    <label>Clave API de Gemini<input id="k-gem" type="password" autocomplete="off" spellcheck="false" /></label>
+    <label>Modelo de Gemini (traducción)<select id="m-gem"></select></label>
+    <label>Clave API de Deepgram<input id="k-dg" type="password" autocomplete="off" spellcheck="false" /></label>
+    <label>Modelo de transcripción (Deepgram)<select id="m-stt"></select></label>
+    <label>Voz (Deepgram)<select id="m-tts"></select></label>
+    <button id="m-load" style="width:100%">Cargar modelos y voces</button>
+    <p id="m-status" class="mu" style="margin:8px 0 18px"></p>
+    <label>Carpeta de la biblioteca</label>
+    <p id="dn" style="margin:4px 0 8px">Almacenamiento interno IndexedDB</p>
+    <div class="row" style="margin-bottom:18px">
+      <button id="d-pick" class="pri">Elegir carpeta</button>
+      <button id="d-sync">Sincronizar</button>
+      <button id="d-off" class="dng">Quitar</button>
+    </div>
+    <button id="c-save" class="pri" style="width:100%">Guardar preferencias</button>
+  </section>
+</main>
+
+<div id="bar">
+  <div class="row m" id="subs-time-row">
+    <input id="subs-time" type="text" inputmode="numeric" placeholder="Ir a 00:00:00" aria-label="Tiempo manual" />
+    <button id="subs-goto" class="pri">Ir</button>
+  </div>
+  <div class="row m">
+    <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Posición" style="flex:1" />
+    <span id="tm">0:00 / 0:00</span>
+  </div>
+  <div class="row m">
+    <button id="spd">1x</button>
+    <button class="lk" aria-label="Traducir selección">❓</button>
+    <button id="bk" aria-label="Atrasar">⏪</button>
+    <button id="pp" class="pri" aria-label="Reproducir">▶</button>
+    <button id="fw" aria-label="Adelantar">⏩</button>
+    <button id="cc">CC</button>
+    <button class="find-btn" aria-label="Buscar en el texto">🔍</button>
+    <button id="confuse" aria-label="Sección confusa">🤔</button>
+  </div>
+  <div class="row d">
+    <button id="pv" aria-label="Página anterior">◀</button>
+    <button id="ta" class="pri">Traducir sección</button>
+    <button id="doc-audio" class="pri">Narrar</button>
+    <button id="tr-all" aria-label="Mostrar u ocultar todas las traducciones">🌐</button>
+    <button class="lk" aria-label="Traducir selección">❓</button>
+    <button id="nx" aria-label="Página siguiente">▶</button>
+    <button class="find-btn" aria-label="Buscar en el texto">🔍</button>
+  </div>
+  <div class="row narr" id="narrbar">
+    <button id="n-prev" aria-label="Párrafo anterior">⏮</button>
+    <button id="n-play" class="pri" aria-label="Reproducir o pausar">▶</button>
+    <button id="n-next" aria-label="Párrafo siguiente">⏭</button>
+    <input id="nseek" type="range" min="0" max="1000" value="0" aria-label="Progreso de narración" style="flex:1" />
+    <span id="ntm">0/0</span>
+    <button class="lk" aria-label="Traducir selección">❓</button>
+    <button id="n-stop" class="dng" aria-label="Detener narración">✕</button>
+  </div>
+  <div class="row mk">
+    <span id="readpct"></span>
+    <div class="mktools">
+      <button id="mark" class="pri" aria-label="Marcar fragmento leído">✂️</button>
+      <button id="mk-confirm" class="pri" hidden aria-label="Confirmar extremo">✓</button>
+      <button id="mk-cancel" class="dng" hidden aria-label="Cancelar extremo">✕</button>
+      <button id="mk-plus" aria-label="Sumar lectura">+x1</button>
+      <button id="mk-minus" aria-label="Restar lectura">−x1</button>
+    </div>
+  </div>
+  <p id="mk-hint" class="mu" hidden style="text-align:center"></p>
+</div>
+
+<div id="ntw"><button id="nt" aria-label="Ocultar menú">▼</button></div>
+<nav>
+  <button data-v="player" class="sel">▶<br />Lector</button>
+  <button data-v="library">▤<br />Biblioteca</button>
+  <button data-v="words">✧<br />Diccionario</button>
+  <button data-v="sessions">◎<br />Sesiones</button>
+  <button data-v="settings">⚙<br />Ajustes</button>
+</nav>
+
+<dialog id="sd">
+  <h2>Subtítulos</h2>
+  <div id="sl"></div>
+  <div class="row" style="margin-top:8px">
+    <button id="su" style="flex:1">Subir archivo</button>
+    <button id="ai" class="pri" style="flex:1">Transcribir con IA</button>
+  </div>
+  <h3>Editar texto seleccionado</h3>
+  <div class="row">
+    <button id="e-rep" style="flex:1" aria-label="Reemplazar">✏️</button>
+    <button id="e-mrg" style="flex:1" aria-label="Unir con anterior">🔗</button>
+    <button id="e-un" style="flex:1" aria-label="Deshacer">↶</button>
+    <button id="e-re" style="flex:1" aria-label="Rehacer">↷</button>
+  </div>
+  <button id="e-rst" class="dng" style="width:100%;margin-top:8px">↺ Restablecer subtítulos originales</button>
+  <h3>Modo</h3>
+  <div class="row" id="md">
+    <button data-m="hid" style="flex:1">Ocultar</button>
+    <button data-m="orig" style="flex:1">Original</button>
+    <button data-m="bi" style="flex:1">+ Traducción</button>
+  </div>
+  <button id="sx" style="width:100%;margin-top:14px;background:transparent;color:var(--mu)">Cerrar</button>
+</dialog>
+
+<dialog id="edit-dlg">
+  <h2>Reemplazar texto</h2>
+  <input id="edit-input" type="text" autocomplete="off" />
+  <div class="row">
+    <button id="edit-cancel" style="flex:1">Cancelar</button>
+    <button id="edit-ok" class="pri" style="flex:1">Aplicar</button>
+  </div>
+</dialog>
+
+<dialog id="fnd">
+  <h2>Buscar en el texto</h2>
+  <input id="fq" type="search" placeholder="Texto a buscar…" autocomplete="off" spellcheck="false" />
+  <div id="fr"></div>
+  <button id="fx" style="width:100%;background:transparent;color:var(--mu)">Cerrar</button>
+</dialog>
+
+<dialog id="mkd">
+  <h2>Marcar como leído</h2>
+  <p class="mu" style="margin-bottom:12px">Extremo final capturado. ¿Desde dónde empieza el fragmento leído?</p>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <button id="mk-a" class="pri">Elegir primera palabra manualmente</button>
+    <button id="mk-b" class="pri">Desde la marca anterior</button>
+    <button id="mk-c" style="background:transparent;color:var(--mu)">Cancelar</button>
+  </div>
+</dialog>
+
+<dialog id="cdlg">
+  <h2>Sección confusa guardada</h2>
+  <p class="mu" id="c-info" style="margin-bottom:12px"></p>
+  <div class="row" style="flex-wrap:wrap">
+    <button id="c-reveal" class="pri" style="flex:1">Revelar</button>
+    <button id="c-remark" style="flex:1">Remarcar</button>
+    <button id="c-delete" class="dng" style="flex:1">Eliminar</button>
+    <button id="c-close" style="flex:1;background:transparent;color:var(--mu)">Cerrar</button>
+  </div>
+</dialog>
+
+<dialog id="sess-dlg">
+  <h2>¿Continuar la sesión?</h2>
+  <p class="mu" style="margin-bottom:12px">Estuviste ausente unos momentos. ¿Deseas continuar la sesión actual o iniciar una nueva?</p>
+  <div class="row">
+    <button id="sess-continue" class="pri" style="flex:1">Continuar sesión</button>
+    <button id="sess-dlg-new" style="flex:1">Nueva sesión</button>
+  </div>
+</dialog>
+
+<div id="pop" hidden>
+  <button id="p-x" aria-label="Cerrar">✕</button>
+  <b id="pw" class="wd"></b>
+  <p id="pm"></p>
+  <button id="p-audio" class="pri" style="width:100%;margin-bottom:8px">🔊 Escuchar pronunciación</button>
+  <button id="p-seek" hidden style="width:100%;margin-bottom:8px">▶ Continuar desde aquí</button>
+  <div id="p-word-btns" hidden>
+    <button id="p-ai" class="pri">Traducir en contexto (IA)</button>
+    <button id="p-dict">Diccionario</button>
+  </div>
+  <button id="p-trad" class="pri" hidden style="width:100%;margin-bottom:8px">Traducir fragmento</button>
+  <div id="p-ask" class="row">
+    <button id="p-no" class="dng" style="flex:1">No la conozco</button>
+    <button id="p-yes" class="pri" style="flex:1">Ya la conozco</button>
+  </div>
+  <div id="p-act" class="row" hidden>
+    <button id="pc" style="flex:1">Cerrar</button>
+  </div>
+</div>
+
+<div id="toast" hidden></div>
+<input type="file" id="fi" multiple hidden accept=".txt,.pdf,.epub,.srt,.vtt,.json,.mp3,.wav,.m4a,.ogg,.aac,.flac,.mp4,.webm,.mov,audio/*,video/*" />
+<input type="file" id="si" hidden accept=".srt,.vtt,.txt,.json" />
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+const fmt = s => Number.isFinite(s) && s >= 0 ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '0:00';
+const mk = (text, start = 0, end = 0, extra = {}) => ({ text, start, end, translation: '', ...extra });
+let toastT;
+const toast = m => { const t = $('#toast'); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3200); };
+
+const LANGS = { en: 'Inglés', es: 'Español', fr: 'Francés', de: 'Alemán', it: 'Italiano', pt: 'Portugués', ja: 'Japonés', ko: 'Coreano', zh: 'Chino' };
+const KIND = { pdf: 'pdf', epub: 'epub', txt: 'txt', mp4: 'video', webm: 'video', mov: 'video', srt: 'subs', vtt: 'subs', json: 'subs', mp3: 'audio', wav: 'audio', m4a: 'audio', ogg: 'audio', aac: 'audio', flac: 'audio' };
+const CDN = 'https://cdnjs.cloudflare.com/ajax/libs/';
+const libs = {};
+const lib = u => libs[u] ??= new Promise((ok, no) => {
+  const s = el('script'); s.src = u; s.onload = ok;
+  s.onerror = () => { delete libs[u]; no(new Error('No se pudo cargar librería externa.')); };
+  document.head.append(s);
+});
+
+let cfg = { sourceLanguage: 'en', targetLanguage: 'es', skip: 15, geminiKey: '', deepgramKey: '', geminiModel: '', sttModel: '', ttsVoice: '', ...load('bunnyling_settings', {}) };
+const S = {
+  file: null, files: [], subTime: 0, subPlaying: false, subTimer: null, countdownTimer: null,
+  paras: [], blocks: [], act: -1, mode: 'orig', supId: null, kind: null, doc: null, page: 1, url: null,
+  addTo: null, pick: null, spans: [], sel: null, undo: [], redo: [], jobs: 0, win: new Set(),
+  docBusy: false, docCancel: false, docChunks: [], docNextChunk: -1, mediaChunks: [],
+  narrOn: false, narrIdx: 0, narrRun: 0, cur: -1, seg: null, trc: {}, trcKey: '', trv: { seg: {}, para: {} },
+  markPhase: 'idle', markEnd: null, markStart: null, markCounter: 0, readCounts: {},
+  confuse: { items: [], markingStart: null, selected: -1, revealing: false, pauseTimer: null, startedAt: 0 }
+};
+const V = $('#vid');
+const WORD_RE = /\p{L}[\p{L}\p{N}]*(?:[-\x27’][\p{L}\p{N}]+)*/gu;
+const normKey = w => String(w || '').toLowerCase().replace(/’/g, "'").replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+const tokenize = t => String(t || '').match(WORD_RE) || [];
+
+/* IndexedDB */
+const DB = (() => {
+  const open = indexedDB.open('bunnyling-library-db-v9', 3);
+  open.onupgradeneeded = () => {
+    const d = open.result;
+    if (!d.objectStoreNames.contains('files')) d.createObjectStore('files', { keyPath: 'id' });
+    if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta');
+    if (!d.objectStoreNames.contains('dict')) d.createObjectStore('dict', { keyPath: 'word' });
+  };
+  const ready = new Promise((ok, no) => { open.onsuccess = () => ok(open.result); open.onerror = () => no(open.error); });
+  const run = async (st, mode, fn) => {
+    const db = await ready;
+    return new Promise((ok, no) => {
+      const tx = db.transaction(st, mode), rq = fn(tx.objectStore(st));
+      tx.oncomplete = () => ok(rq?.result); tx.onerror = () => no(tx.error);
+    });
+  };
+  return {
+    all: () => run('files', 'readonly', s => s.getAll()),
+    put: x => run('files', 'readwrite', s => s.put(x)),
+    del: id => run('files', 'readwrite', s => s.delete(id)),
+    meta: {
+      get: k => run('meta', 'readonly', s => s.get(k)),
+      set: (k, v) => run('meta', 'readwrite', s => s.put(v, k)),
+      clear: k => run('meta', 'readwrite', s => s.delete(k)),
+      keys: () => run('meta', 'readonly', s => s.getAllKeys())
+    },
+    dict: {
+      all: () => run('dict', 'readonly', s => s.getAll()),
+      del: k => run('dict', 'readwrite', s => s.delete(k)),
+      clear: () => run('dict', 'readwrite', s => s.clear()),
+      putMany: async xs => {
+        if (!xs.length) return;
+        const db = await ready;
+        return new Promise((ok, no) => {
+          const tx = db.transaction('dict', 'readwrite'), st = tx.objectStore('dict');
+          xs.forEach(x => st.put(x));
+          tx.oncomplete = () => ok(); tx.onerror = () => no(tx.error);
+        });
+      }
+    }
+  };
+})();
+
+const DICT = { map: new Map(), dirty: new Set(), total: 0, loaded: false };
+let WC = { v: 1, words: {} };
+const stateOf = k => DICT.map.get(k)?.state || 'new';
+const newEntry = (word, mid, now = Date.now()) => ({ word, state: 'new', totalSeen: 0, cleanStreak: 0, firstSeen: now, lastSeen: now, manualOverride: false, materialIds: mid ? [mid] : [] });
+function incrementSeen(e, count) {
+  e.totalSeen += count; e.lastSeen = Date.now();
+  if (e.manualOverride) return;
+  if (e.state === 'problematic') { e.cleanStreak += count; if (e.cleanStreak >= 25) e.state = 'known'; return; }
+  if (e.state === 'known') return;
+  e.state = e.totalSeen >= 25 ? 'known' : e.totalSeen >= 2 ? 'learning' : 'new';
+}
+let flushT;
+function scheduleFlush() {
+  clearTimeout(flushT);
+  flushT = setTimeout(async () => {
+    const entries = [...DICT.dirty].map(k => DICT.map.get(k)).filter(Boolean);
+    DICT.dirty.clear();
+    if (entries.length) await DB.dict.putMany(entries);
+    await DB.meta.set('totalWordsProcessed', DICT.total);
+  }, 300);
+}
+function recolorKeys(keys) {
+  keys.forEach(k => {
+    const s = stateOf(k);
+    document.querySelectorAll(`.rw[data-word="${CSS.escape(k)}"]`).forEach(n => n.dataset.s = s);
+  });
+}
+async function processParagraph(mid, text) {
+  if (!mid || !text) return;
+  const freq = new Map();
+  for (const w of tokenize(text)) { const k = normKey(w); if (k) freq.set(k, (freq.get(k) || 0) + 1); }
+  if (!freq.size) return;
+  const changed = []; let n = 0;
+  for (const [k, c] of freq) {
+    let e = DICT.map.get(k); const before = e ? e.state : 'new';
+    if (!e) { e = newEntry(k, mid); DICT.map.set(k, e); }
+    incrementSeen(e, c); n += c; DICT.dirty.add(k);
+    if (e.state !== before) changed.push(k);
+  }
+  DICT.total += n; scheduleFlush(); if (changed.length) recolorKeys(changed);
+}
+
+/* Parsers */
+const toSec = t => String(t || '').replace(',', '.').split(':').reduce((a, v) => a * 60 + parseFloat(v), 0);
+function parseSubs(raw) {
+  const src = String(raw ?? '').replace(/^\uFEFF/, '').trim();
+  if (!src) return [];
+  if (/^[\[{]/.test(src)) {
+    try {
+      const data = JSON.parse(src), rows = Array.isArray(data) ? data : (data.cues || data.subtitles || []);
+      return rows.map(x => mk(String(x.text || '').trim(), +x.start || 0, Math.max((+x.start || 0) + .1, +x.end || 3), { words: x.words, translation: x.translation || '' })).filter(x => x.text).sort((a, b) => a.start - b.start);
+    } catch {}
+  }
+  return src.replace(/\r/g, '').split(/\n(?:[ \t]*\n)+/).flatMap(b => {
+    const L = b.split('\n'), i = L.findIndex(l => l.includes('-->')); if (i < 0) return [];
+    const [a, c] = L[i].split('-->');
+    const text = L.slice(i + 1).join(' ').replace(/<[^>]+>/g, '').trim();
+    return text ? [mk(text, toSec(a.trim().split(/\s/)[0]), toSec(c.trim().split(/\s/)[0]))] : [];
+  }).sort((a, b) => a.start - b.start);
+}
+function parseText(raw) {
+  return String(raw ?? '').replace(/\r\n?/g, '\n').trim().split(/\n[ \t]*\n+/).map(p => p.replace(/\s+/g, ' ').trim()).filter(Boolean).map(t => mk(t));
+}
+
+function buildWordSpans(text, words) {
+  if (words?.length) {
+    const out = [];
+    words.forEach((w, k) => { if (k) out.push(document.createTextNode(' ')); const key = normKey(w.word), s = el('span', 'rw', w.word); if (key) { s.dataset.word = key; s.dataset.s = stateOf(key); } s.dataset.k = k; out.push(s); });
+    return out;
+  }
+  const out = []; let pos = 0, k = 0;
+  for (const m of String(text || '').matchAll(WORD_RE)) {
+    if (m.index > pos) out.push(document.createTextNode(text.slice(pos, m.index)));
+    const key = normKey(m[0]), s = el('span', 'rw', m[0]);
+    if (key) { s.dataset.word = key; s.dataset.s = stateOf(key); }
+    s.dataset.k = k++; out.push(s); pos = m.index + m[0].length;
+  }
+  if (pos < text.length) out.push(document.createTextNode(text.slice(pos)));
+  return out;
+}
+
+function regroup() {
+  const P = S.paras;
+  if (S.kind !== 'media' && S.kind !== 'subs') {
+    P.forEach((p, i) => p.b = i);
+    S.blocks = P.map((p, i) => ({ from: i, to: i, text: p.text }));
+    return;
+  }
+  let b = -1, open = false, cnt = 0, len = 0;
+  for (let i = 0; i < P.length; i++) {
+    const p = P[i];
+    if (open && i > 0) {
+      const prev = P[i - 1], gap = (+p.start || 0) - (+prev.end || 0);
+      if (gap > 1.2 || /[.!?…]["'»)\]]?\s*$/.test((prev.text || '').trim())) open = false;
+    }
+    if (!open) { b++; open = true; cnt = 0; len = 0; }
+    p.b = b; cnt++; len += p.text.length;
+    if (cnt >= 8 || len >= 600) open = false;
+  }
+  S.blocks = [];
+  P.forEach((p, i) => { const bl = S.blocks[p.b] ||= { from: i, to: i }; bl.to = i; });
+  S.blocks.forEach(bl => bl.text = P.slice(bl.from, bl.to + 1).map(p => p.text).join(' '));
+}
+
+function historyWords() { return $$('#text .tx .rw'); }
+function historyCount(w) { return Math.max(0, +(S.readCounts[w.dataset.hkey] || 0)); }
+function paintReadHistory() {
+  const words = historyWords();
+  words.forEach(w => { w.classList.add('hword'); w.classList.remove('hread', 'hstart', 'hend', 'hpicked'); w.querySelector('.hbadge')?.remove(); });
+  let from = 0;
+  for (let i = 1; i <= words.length; i++) {
+    if (i < words.length && historyCount(words[i]) === historyCount(words[from])) continue;
+    const count = historyCount(words[from]);
+    words[from].classList.add('hstart'); words[i - 1].classList.add('hend');
+    for (let j = from; j < i; j++) if (count > 0) words[j].classList.add('hread');
+    words[from].append(el('span', 'hbadge', 'x' + count));
+    from = i;
+  }
+  if (S.markEnd) S.markEnd.classList.add('hpicked');
+  if (S.markStart) S.markStart.classList.add('hpicked');
+  const read = words.filter(w => historyCount(w) > 0).length;
+  $('#readpct').textContent = words.length ? `${Math.round(read / words.length * 100)} % leído · ${read}/${words.length}` : '';
+}
+
+async function loadEpubBlob(blob) {
+  await lib(CDN + 'jszip/3.10.1/jszip.min.js');
+  const z = await JSZip.loadAsync(blob);
+  const parseXml = (s, m = 'text/xml') => new DOMParser().parseFromString(s, m);
+  const opfPath = parseXml(await z.file('META-INF/container.xml').async('string')).querySelector('rootfile')?.getAttribute('full-path');
+  if (!opfPath) return [];
+  const base = opfPath.includes('/') ? opfPath.slice(0, opfPath.lastIndexOf('/') + 1) : '';
+  const opf = parseXml(await z.file(opfPath).async('string'));
+  const items = new Map([...opf.querySelectorAll('manifest > item')].map(n => [n.getAttribute('id'), { href: n.getAttribute('href'), type: n.getAttribute('media-type') || '' }]));
+  const normPath = p => { const o = []; p.split('/').forEach(s => s === '..' ? o.pop() : s && s !== '.' && o.push(s)); return o.join('/'); };
+  const out = [];
+  for (const ref of opf.querySelectorAll('spine > itemref')) {
+    const it = items.get(ref.getAttribute('idref')); if (!it?.href) continue;
+    const full = normPath(base + decodeURIComponent(it.href.split('#')[0]));
+    const f = z.file(full); if (!f) continue;
+    const doc = parseXml(await f.async('string'), 'text/html');
+    const cdir = full.includes('/') ? full.slice(0, full.lastIndexOf('/') + 1) : '';
+    const blocks = doc.querySelectorAll('h1,h2,h3,h4,p,blockquote,li');
+    for (const elNode of (blocks.length ? blocks : [doc.body])) {
+      const imgs = [];
+      for (const im of elNode.querySelectorAll('img,image')) {
+        const src = im.getAttribute('src') || im.getAttribute('xlink:href'); if (!src || /^data:/i.test(src)) continue;
+        const zf = z.file(normPath(cdir + decodeURIComponent(src.split('#')[0])));
+        if (zf) imgs.push(URL.createObjectURL(new Blob([await zf.async('arraybuffer')])));
+      }
+      const t = (elNode.textContent || '').replace(/\s+/g, ' ').trim();
+      if (t) out.push(mk(t, 0, 0, imgs.length ? { images: imgs } : {}));
+    }
+  }
+  return out;
+}
+
+async function loadPdfBlob(blob) {
+  if (!window.pdfjsLib) {
+    await lib(CDN + 'pdf.js/3.11.174/pdf.min.js');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = CDN + 'pdf.js/3.11.174/pdf.worker.min.js';
+  }
+  const doc = await pdfjsLib.getDocument({ data: await blob.arrayBuffer() }).promise;
+  const paras = [];
+  for (let n = 1; n <= doc.numPages; n++) {
+    const pg = await doc.getPage(n), tc = await pg.getTextContent();
+    const lines = []; let cur = '', lastY = null;
+    for (const it of tc.items) {
+      const s = String(it.str || ''); if (!s.trim()) continue;
+      const y = Math.round(it.transform?.[5] || 0);
+      if (lastY !== null && Math.abs(y - lastY) > 5) { if (cur.trim()) lines.push({ t: cur.trim(), gap: Math.abs(y - lastY) }); cur = s; }
+      else cur += (cur && !cur.endsWith(' ') && !s.startsWith(' ') ? ' ' : '') + s;
+      lastY = y;
+    }
+    if (cur.trim()) lines.push({ t: cur.trim(), gap: 0 });
+    let buf = '';
+    for (const ln of lines) {
+      if (buf && (ln.gap > 18 || /[.!?]["'»)\]]?$/.test(buf))) { paras.push(mk(buf.trim(), 0, 0, { page: n })); buf = ln.t; }
+      else buf = (buf ? buf + ' ' : '') + ln.t;
+    }
+    if (buf.trim()) paras.push(mk(buf.trim(), 0, 0, { page: n }));
+  }
+  return { doc, paras };
+}
+
+async function drawPdfPage(n) {
+  if (!S.doc) return;
+  S.page = Math.max(1, Math.min(S.doc.numPages, n));
+  const pg = await S.doc.getPage(S.page), vp = pg.getViewport({ scale: 1.5 });
+  const cv = $('#pcv'); cv.width = vp.width; cv.height = vp.height; cv.hidden = false;
+  await pg.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+  $('#sub').textContent = `PDF · Pág. ${S.page}/${S.doc.numPages}`;
+}
+
+function renderConfuseTimeline() {
+  let wrap = $('#confuseTimeline');
+  if (!wrap) { wrap = el('div'); wrap.id = 'confuseTimeline'; $('#text').prepend(wrap); }
+  wrap.replaceChildren();
+  if (S.kind !== 'media' || !S.confuse.items.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = S.mode === 'hid' ? 'block' : 'none';
+  wrap.append(el('div', 'ct-title', 'Secciones confusas guardadas (toca para revelar o editar):'));
+  const track = el('div', 'ct-track'), list = el('div', 'ct-list');
+  const dur = Math.max(V.duration || 0, ...S.confuse.items.map(x => x.end), 1);
+  S.confuse.items.forEach((it, idx) => {
+    const seg = el('button', 'ct-seg' + (S.confuse.selected === idx && S.confuse.revealing ? ' active' : ''));
+    seg.style.left = Math.min(98, it.start / dur * 100) + '%';
+    seg.style.width = Math.max(1.5, (it.end - it.start) / dur * 100) + '%';
+    const openDlg = () => { S.confuse.selected = idx; $('#c-info').textContent = `Sección #${idx + 1}: ${fmt(it.start)} → ${fmt(it.end)}`; $('#cdlg').showModal(); };
+    seg.onclick = openDlg; track.append(seg);
+    const row = el('button', 'opt ct-item');
+    row.append(el('span', null, `🤔 Sección #${idx + 1}`), el('span', 'mu', `${fmt(it.start)} → ${fmt(it.end)}`));
+    row.onclick = openDlg; list.append(row);
+  });
+  wrap.append(track, list);
+}
+
+function render() {
+  const box = $('#text'); box.replaceChildren(); box.className = S.mode; S.act = -1;
+  if (!S.paras.length) {
+    S.seg = null; updateSegInfo();
+    box.append(el('p', 'empty', S.kind === 'media' ? 'Sin subtítulos. Pulsa CC para subirlos o transcribir con IA.' : 'No hay texto cargado.'));
+    paintReadHistory(); return;
+  }
+  regroup(); applyTrCache(); buildSegments();
+  const frag = document.createDocumentFragment();
+  S.blocks.forEach((bl, bi) => {
+    if (S.seg.list[S.seg.of[bi]]?.from === bi) frag.append(segHead(S.seg.of[bi]));
+    const d = el('div', 'p'); d.dataset.b = bi;
+    const tx = el('div', 'tx');
+    if (S.kind === 'media' || S.kind === 'subs') {
+      for (let i = bl.from; i <= bl.to; i++) {
+        if (i > bl.from) tx.append(' ');
+        const run = el('span', 'run'); run.dataset.i = i;
+        run.append(...buildWordSpans(S.paras[i].text, S.paras[i].words));
+        tx.append(run);
+      }
+    } else {
+      tx.append(...buildWordSpans(bl.text));
+    }
+    const occ = new Map();
+    tx.querySelectorAll('.rw').forEach(w => {
+      const r = w.closest('.run'), pIdx = r ? +r.dataset.i : bl.from;
+      const tok = normKey(w.textContent) || 'w';
+      const c = occ.get(`${pIdx}:${tok}`) || 0; occ.set(`${pIdx}:${tok}`, c + 1);
+      w.dataset.hkey = `${pIdx}:${tok}:${c}`;
+    });
+    d.append(tx);
+    for (let i = bl.from; i <= bl.to; i++) (S.paras[i].images || []).forEach(u => { const im = el('img'); im.src = u; d.append(im); });
+    d.append(el('div', 'tr', S.paras[bl.from].translation || ''), trButton(bi));
+    frag.append(d);
+  });
+  box.append(frag);
+  renderConfuseTimeline();
+  paintReadHistory();
+  applyTrVisibility();
+  observeBlocks();
+  const keep = Math.max(S.cur, 0); S.cur = -1; setCur(keep);
+}
+
+function sync(t) {
+  const P = S.paras; if (!['media', 'subs'].includes(S.kind) || !P.length) return;
+  if (S.confuse.revealing && S.confuse.selected >= 0) {
+    const cur = S.confuse.items[S.confuse.selected];
+    if (cur && (t > cur.end + 0.25 || t < cur.start - 0.5)) {
+      S.confuse.revealing = false; document.body.classList.remove('confuse-reveal'); renderConfuseTimeline();
+    }
+  }
+  let lo = 0, hi = P.length - 1, idx = -1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (t < P[m].start) hi = m - 1; else if (t >= P[m].end) lo = m + 1; else { idx = m; break; } }
+  if (idx >= 0 && idx !== S.act) {
+    $$('.p.on,.run.on,.wa').forEach(n => n.classList.remove('on', 'wa'));
+    S.act = idx; setCur(P[idx].b);
+    const p = P[idx], box = $(`.p[data-b="${p.b}"]`), run = $(`.run[data-i="${idx}"]`);
+    box?.classList.add('on'); run?.classList.add('on');
+    S.spans = run ? [...run.querySelectorAll('.rw')] : [];
+    box?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+  const ws = P[S.act]?.words;
+  if (ws && S.spans.length) {
+    const k = ws.findLastIndex(w => t >= w.start);
+    S.spans.forEach((sp, j) => sp.classList.toggle('wa', j === k));
+  }
+}
+
+function show(v) {
+  document.body.dataset.v = v;
+  $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+  $$('nav button').forEach(b => b.classList.toggle('sel', b.dataset.v === v));
+  if (v === 'library') renderLib();
+  if (v === 'words') renderWords();
+  if (v === 'sessions') renderSessions();
+}
+
+function stopSubClock() { clearInterval(S.subTimer); S.subTimer = null; S.subPlaying = false; $('#pp').textContent = '▶'; }
+function toggleSubClock() {
+  if (S.subPlaying) { stopSubClock(); return; }
+  const maxDur = S.paras.length ? S.paras[S.paras.length - 1].end : 0;
+  S.subPlaying = true; $('#pp').textContent = '⏸';
+  let last = performance.now();
+  S.subTimer = setInterval(() => {
+    const now = performance.now();
+    S.subTime += ((now - last) / 1000) * (V.playbackRate || 1); last = now;
+    if (maxDur && S.subTime >= maxDur) { S.subTime = maxDur; stopSubClock(); }
+    if (maxDur) $('#seek').value = S.subTime / maxDur * 1000;
+    $('#tm').textContent = `${fmt(S.subTime)} / ${fmt(maxDur)}`;
+    sync(S.subTime);
+  }, 100);
+}
+
+async function applySup(s) {
+  if (!s) return;
+  S.supId = s.id;
+  const edit = S.files.find(f => f.role === 'edit' && f.forId === s.id);
+  const raw = await (edit ? edit.blob : s.blob).text();
+  S.paras = s.kind === 'txt' ? parseText(raw) : parseSubs(raw);
+  S.undo = []; S.redo = [];
+  render();
+}
+
+async function saveSubEdits() {
+  if (!S.supId || !S.file) return;
+  const blob = new Blob([JSON.stringify(S.paras)], { type: 'application/json' });
+  const prev = S.files.find(f => f.role === 'edit' && f.forId === S.supId);
+  const item = { id: prev?.id || crypto.randomUUID(), groupId: S.file.groupId, role: 'edit', forId: S.supId, name: 'edit.json', size: blob.size, kind: 'json', blob, lastOpened: Date.now() };
+  await DB.put(item); S.files = await DB.all();
+}
+
+async function openItem(main, sup) {
+  V.pause(); V.removeAttribute('src'); stopSubClock();
+  if (S.url) URL.revokeObjectURL(S.url);
+  clearInterval(S.countdownTimer);
+  stopNarr();
+  Object.assign(S, { cur: -1, seg: null, file: main, paras: [], blocks: [], act: -1, mode: 'orig', supId: null, kind: null, doc: null, page: 1, subTime: 0, undo: [], redo: [] });
+  S.confuse.items = (await DB.meta.get('confuse_' + main.id)) || [];
+  S.confuse.markingStart = null; S.confuse.revealing = false; document.body.classList.remove('confuse-reveal');
+  $('#ttl').textContent = main.name; $('#sub').textContent = main.kind.toUpperCase();
+  $('#media').hidden = true; $('#pcv').hidden = true; $('#vid').hidden = true; $('#countdown-wrap').hidden = true;
+  S.readCounts = (await DB.meta.get('readhist_' + main.id)) || {};
+  S.trcKey = trcKeyFor(main.id); S.trc = (await DB.meta.get(S.trcKey)) || {};
+  S.trv = (await DB.meta.get('trh_' + main.id)) || { seg: {}, para: {} };
+  await loadTrFile();
+  show('player');
+  const blob = main.blob;
+  if (main.kind === 'subs') {
+    S.kind = 'subs'; document.body.dataset.k = 'subs'; document.body.dataset.cc = 'orig';
+    S.paras = parseSubs(await blob.text());
+    const maxDur = S.paras.length ? S.paras[S.paras.length - 1].end : 0;
+    $('#tm').textContent = `0:00 / ${fmt(maxDur)}`;
+    render();
+    $('#countdown-wrap').hidden = false;
+    let left = 5; $('#countdown-ring').textContent = left;
+    S.countdownTimer = setInterval(() => { left--; $('#countdown-ring').textContent = left > 0 ? left : '¡Ya!'; if (left <= 0) clearInterval(S.countdownTimer); }, 1000);
+  } else if (main.kind === 'video' || main.kind === 'audio') {
+    S.kind = 'media'; document.body.dataset.k = 'media'; document.body.dataset.cc = 'orig';
+    S.url = URL.createObjectURL(blob); V.src = S.url;
+    if (main.kind === 'video') { $('#media').hidden = false; $('#vid').hidden = false; }
+    const s = sup || S.files.find(f => f.groupId === main.groupId && f.role === 'supplement');
+    if (s) await applySup(s); else render();
+  } else {
+    S.kind = 'doc'; S.mode = 'bi'; document.body.dataset.k = 'doc'; document.body.dataset.d = main.kind;
+    if (main.kind === 'epub') S.paras = await loadEpubBlob(blob);
+    else if (main.kind === 'pdf') { const r = await loadPdfBlob(blob); S.doc = r.doc; S.paras = r.paras; $('#media').hidden = false; await drawPdfPage(1); }
+    else S.paras = parseText(await blob.text());
+    render();
+  }
+}
+
+function renderLib() {
+  const box = $('#lib'); box.replaceChildren();
+  const mains = S.files.filter(f => f.role === 'main');
+  if (!mains.length) { box.append(el('p', 'empty', 'Tu biblioteca está vacía. Pulsa Importar material.')); return; }
+  mains.forEach(m => {
+    const c = el('div', 'card'), r = el('div', 'row');
+    const bOpen = el('button', 'pri', 'Abrir'), bSub = el('button', null, '+ Sub'), bDel = el('button', 'dng', '🗑');
+    bOpen.onclick = () => openItem(m);
+    bSub.onclick = () => { S.addTo = m.groupId; $('#si').click(); };
+    bDel.onclick = async () => {
+      for (const f of S.files.filter(x => x.groupId === m.groupId)) await DB.del(f.id);
+      S.files = await DB.all(); renderLib();
+    };
+    r.append(el('b', null, m.name), bOpen);
+    if (m.kind === 'video' || m.kind === 'audio') r.append(bSub);
+    r.append(bDel); r.firstChild.style.flex = '1'; c.append(r);
+    S.files.filter(x => x.groupId === m.groupId && x.role === 'supplement').forEach(s => {
+      const sr = el('div', 'row'); sr.style.marginTop = '8px';
+      const sb = el('button', 'opt', '💬 ' + s.name); sb.style.margin = '0'; sb.style.flex = '1';
+      sb.onclick = () => openItem(m, s); sr.append(sb); c.append(sr);
+    });
+    box.append(c);
+  });
+}
+
+let filtState = 'all';
+function renderWords() {
+  const box = $('#wl'); box.replaceChildren();
+  const q = ($('#dq').value || '').toLowerCase().trim(), sort = $('#dsort').value;
+  let list = [...DICT.map.values()];
+  if (filtState !== 'all') list = list.filter(e => e.state === filtState);
+  if (q) list = list.filter(e => e.word.includes(q));
+  list.sort((a, b) => sort === 'freq' ? b.totalSeen - a.totalSeen : sort === 'recent' ? b.lastSeen - a.lastSeen : a.word.localeCompare(b.word));
+  $('#dstats').textContent = `Mostrando ${list.length} de ${DICT.map.size} palabras · ${DICT.total} apariciones`;
+  if (!list.length) { box.append(el('p', 'empty', 'Sin palabras en este filtro.')); return; }
+  list.forEach(e => {
+    const c = el('div', 'card'), r = el('div', 'row'), act = el('div', 'dict-actions');
+    const pct = DICT.total > 0 ? ((e.totalSeen / DICT.total) * 100).toFixed(2) + '%' : '0%';
+    r.append(el('b', 'wd state-' + e.state, e.word), el('span', 'mu', `${e.totalSeen} vistas · ${pct}`));
+    r.firstChild.style.flex = '1';
+    const bK = el('button', null, '✓ Conocida'), bP = el('button', 'dng', '✗ Problemática'), bD = el('button', null, '🗑');
+    bK.onclick = () => { e.state = 'known'; e.manualOverride = true; DICT.dirty.add(e.word); scheduleFlush(); recolorKeys([e.word]); renderWords(); };
+    bP.onclick = () => { e.state = 'problematic'; e.cleanStreak = 0; e.manualOverride = false; DICT.dirty.add(e.word); scheduleFlush(); recolorKeys([e.word]); renderWords(); };
+    bD.onclick = async () => { DICT.map.delete(e.word); await DB.dict.del(e.word); recolorKeys([e.word]); renderWords(); };
+    act.append(bK, bP, bD); c.append(r, act); box.append(c);
+  });
+}
+
+/* Sessions & Idle Detection */
+const SESSION = { current: null, startedAt: 0, total: 0, daily: 0, dailyDate: '', log: [], hiddenAt: 0 };
+async function sessionStart() {
+  if (SESSION.current) { const prev = SESSION.log.find(x => x.id === SESSION.current); if (prev && !prev.end) prev.end = Date.now(); }
+  SESSION.current = crypto.randomUUID(); SESSION.startedAt = Date.now(); SESSION.total++;
+  const today = new Date().toISOString().slice(0, 10);
+  if (SESSION.dailyDate !== today) { SESSION.dailyDate = today; SESSION.daily = 0; }
+  SESSION.daily++;
+  SESSION.log.push({ id: SESSION.current, start: SESSION.startedAt, end: 0, num: SESSION.total, daily: SESSION.daily });
+  if (SESSION.log.length > 60) SESSION.log = SESSION.log.slice(-60);
+  await DB.meta.set('session_total', SESSION.total);
+  await DB.meta.set('session_daily_date', SESSION.dailyDate);
+  await DB.meta.set('session_daily_count', SESSION.daily);
+  await DB.meta.set('session_log', SESSION.log);
+  renderSessions();
+}
+function renderSessions() {
+  $('#s-total').textContent = SESSION.total; $('#s-daily').textContent = SESSION.daily;
+  $('#s-current').textContent = SESSION.current ? `En curso desde ${new Date(SESSION.startedAt).toLocaleTimeString()}` : 'Sin sesión activa';
+  const box = $('#s-log'); box.replaceChildren();
+  [...SESSION.log].reverse().slice(0, 20).forEach(s => box.append(el('p', s.id === SESSION.current ? 'is-current' : 'mu', `Sesión #${s.num} · Hoy #${s.daily} · ${new Date(s.start).toLocaleTimeString()}`)));
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) SESSION.hiddenAt = Date.now();
+  else if (SESSION.hiddenAt && Date.now() - SESSION.hiddenAt > 30000) { SESSION.hiddenAt = 0; $('#sess-dlg').showModal(); }
+});
+$('#sess-continue').onclick = () => $('#sess-dlg').close();
+$('#sess-dlg-new').onclick = () => { $('#sess-dlg').close(); sessionStart(); toast('Nueva sesión creada'); };
+
+/* Subtitle Selection Capture & In-Place Editor */
+function captureCueSelection() {
+  const sel = getSelection(); if (!sel || !sel.rangeCount || sel.isCollapsed) return null;
+  const r = sel.getRangeAt(0);
+  const a = (r.startContainer.nodeType === 3 ? r.startContainer.parentElement : r.startContainer)?.closest('.run');
+  const b = (r.endContainer.nodeType === 3 ? r.endContainer.parentElement : r.endContainer)?.closest('.run');
+  if (!a || a !== b) return null;
+  const off = (node, o) => { const rr = document.createRange(); rr.selectNodeContents(a); rr.setEnd(node, o); return rr.toString().replace(/x\d+/g, '').length; };
+  return { i: +a.dataset.i, a: off(r.startContainer, r.startOffset), b: off(r.endContainer, r.endOffset), txt: sel.toString().replace(/x\d+/g, '').trim() };
+}
+
+/* ===== Segmentación del contenido (bloques de 10 %) ===== */
+const LETTER_RE = /\p{L}/gu;
+const countLetters = t => (String(t || '').match(LETTER_RE) || []).length;
+const endsSentence = t => /[.!?…:;。！？][\x22\x27»”’)\]]*\s*$/.test(String(t || '').trim());
+// Unidad mínima: el párrafo (bloque). Los cortes caen en la rejilla de 10 % de letras; si caen dentro de un
+// párrafo, se prolonga hasta el siguiente signo de puntuación final, dejando un pequeño excedente.
+function segmentContent(blocks, step = 10) {
+  const n = blocks.length, cum = []; let total = 0;
+  if (!n) return { segs: [], cum, total };
+  blocks.forEach((b, i) => { cum[i] = total; b.letters = countLetters(b.text); total += b.letters; });
+  const grid = total * step / 100, segs = []; let from = 0, k = 1;
+  while (from < n) {
+    if (!grid || k * step >= 100) { segs.push({ from, to: n - 1 }); break; }
+    const target = grid * k; let to = from;
+    while (to < n - 1 && cum[to] + blocks[to].letters < target) to++;
+    while (to < n - 1 && !endsSentence(blocks[to].text) && cum[to] + blocks[to].letters < target + total * 0.05) to++;
+    segs.push({ from, to });
+    const endL = cum[to] + blocks[to].letters;
+    from = to + 1; k = Math.floor(endL / grid + 1e-9) + 1;
+  }
+  return { segs, cum, total };
+}
+function buildSegments() {
+  const r = segmentContent(S.blocks), of = [], state = [];
+  r.segs.forEach((g, i) => {
+    g.letters = r.cum[g.to] + S.blocks[g.to].letters - r.cum[g.from];
+    let all = true;
+    for (let b = g.from; b <= g.to; b++) { of[b] = i; if (!S.paras[S.blocks[b].from].translation) all = false; }
+    state[i] = all ? 'done' : 'idle';
+  });
+  S.seg = { list: r.segs, cum: r.cum, total: r.total, of, state };
+}
+function applyTrCache() {
+  S.blocks.forEach(bl => { const p = S.paras[bl.from]; if (!p.translation && S.trc[bl.text]) p.translation = S.trc[bl.text]; });
+}
+let blockIO;
+function observeBlocks() {
+  blockIO?.disconnect(); if (S.kind !== 'doc') return;
+  blockIO = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) setCur(+e.target.dataset.b); }, { root: $('#v-player'), rootMargin: '-35% 0px -60% 0px' });
+  $$('#text .p').forEach(x => blockIO.observe(x));
+}
+function updateSegInfo() {
+  const g = S.seg, box = $('#seginfo'); if (!g?.list.length) { box.textContent = ''; return; }
+  const si = g.of[Math.max(S.cur, 0)] ?? 0;
+  box.textContent = `Sección ${si + 1}/${g.list.length}` + ({ busy: ' · traduciendo…', done: ' · traducida', fail: ' · error al traducir' }[g.state[si]] || '');
+}
+const translationOn = () => !!(cfg.geminiKey && cfg.geminiModel) && S.mode === 'bi';
+function setCur(b) { if (b == null || b < 0 || b === S.cur) return; S.cur = b; onPosition(); }
+// Al superar el 70 % de la sección actual se traduce la siguiente.
+function onPosition() {
+  updateSegInfo(); if (!S.seg?.list.length || !translationOn()) return;
+  const si = S.seg.of[S.cur] ?? 0, g = S.seg.list[si];
+  translateSeg(si);
+  if ((S.seg.cum[S.cur] - S.seg.cum[g.from]) / Math.max(1, g.letters) >= 0.7 && si + 1 < S.seg.list.length) translateSeg(si + 1);
+}
+function paintTr(a, b) {
+  for (let i = a; i <= b; i++) { const d = $(`.p[data-b="${i}"] .tr`); if (d) d.textContent = S.paras[S.blocks[i].from].translation || ''; }
+}
+let trChain = Promise.resolve();
+function translateSeg(si, force) {
+  const seg = S.seg; if (!seg || !(force ? cfg.geminiKey && cfg.geminiModel : translationOn()) || ['busy', 'done', 'fail'].includes(seg.state[si])) return;
+  seg.state[si] = 'busy'; updateSegInfo();
+  const fileId = S.file?.id, g = seg.list[si];
+  trChain = trChain.then(async () => {
+    try {
+      const pend = []; for (let b = g.from; b <= g.to; b++) if (!S.paras[S.blocks[b].from]?.translation) pend.push(b);
+      const batches = []; let cur = [], len = 0;
+      for (const b of pend) { const L = S.blocks[b].text.length; if (cur.length && len + L > 12000) { batches.push(cur); cur = []; len = 0; } cur.push(b); len += L; }
+      if (cur.length) batches.push(cur);
+      for (const batch of batches) {
+        const out = await gemTranslate(batch.map(b => S.blocks[b].text));
+        if (S.seg !== seg) return;
+        batch.forEach((b, j) => { const bl = S.blocks[b], t = out[j] || ''; S.paras[bl.from].translation = t; if (t) S.trc[bl.text] = t; });
+        paintTr(batch[0], batch.at(-1));
+      }
+      DB.meta.set(S.trcKey, S.trc); scheduleTrFile();
+      seg.state[si] = 'done';
+    } catch (e) { seg.state[si] = 'fail'; toast('Gemini: ' + e.message); }
+    updateSegInfo();
+  });
+}
+
+/* ===== Mostrar / ocultar traducción por sección, párrafo o todo ===== */
+const trExplicit = bi => S.trv.para[bi] ?? S.trv.seg[S.seg?.of[bi]];
+const trVisible = bi => { const e = trExplicit(bi); return e ? e === 'show' : S.mode === 'bi'; };
+const persistTrv = () => { if (S.file) DB.meta.set('trh_' + S.file.id, S.trv); };
+function segHead(si) {
+  const h = el('div', 'segh'); h.dataset.seg = si;
+  const b = el('button', 'segb'); b.onclick = () => toggleSegTr(si);
+  h.append(el('span', null, `Sección ${si + 1}/${S.seg.list.length}`), b); return h;
+}
+function trButton(bi) {
+  const b = el('button', 'trb'); b.dataset.b = bi; b.setAttribute('aria-label', 'Mostrar u ocultar la traducción de este párrafo');
+  b.onclick = () => toggleParaTr(bi); return b;
+}
+function applyTrVisibility() {
+  if (!S.seg) return;
+  $$('#text .p').forEach(p => {
+    const bi = +p.dataset.b, e = trExplicit(bi);
+    p.classList.toggle('trh', e === 'hide'); p.classList.toggle('trs', e === 'show');
+    const b = p.querySelector('.trb'); if (b) b.textContent = trVisible(bi) ? '🌐 Ocultar' : '🌐 Mostrar';
+  });
+  $$('#text .segh').forEach(h => {
+    const e = S.trv.seg[+h.dataset.seg], vis = e ? e === 'show' : S.mode === 'bi';
+    h.querySelector('button').textContent = vis ? '🌐 Ocultar traducción' : '🌐 Mostrar traducción';
+  });
+}
+function needTranslation(si) {
+  if (S.seg?.state[si] === 'fail') S.seg.state[si] = 'idle';
+  if (!cfg.geminiKey || !cfg.geminiModel) return toast('Configura la clave y el modelo de Gemini en Ajustes');
+  translateSeg(si, true);
+}
+function toggleParaTr(bi) {
+  const show = !trVisible(bi); S.trv.para[bi] = show ? 'show' : 'hide';
+  persistTrv(); applyTrVisibility();
+  if (show && !S.paras[S.blocks[bi].from].translation) needTranslation(S.seg.of[bi]);
+}
+function toggleSegTr(si) {
+  const e = S.trv.seg[si], show = e ? e !== 'show' : S.mode !== 'bi', g = S.seg.list[si];
+  S.trv.seg[si] = show ? 'show' : 'hide';
+  for (let b = g.from; b <= g.to; b++) delete S.trv.para[b];
+  persistTrv(); applyTrVisibility();
+  if (show && S.seg.state[si] !== 'done') needTranslation(si);
+}
+function setGlobalTr(mode) {
+  S.mode = mode; document.body.dataset.cc = mode; $('#text').className = mode;
+  S.trv = { seg: {}, para: {} }; persistTrv(); applyTrVisibility(); renderConfuseTimeline();
+  if (mode === 'bi') { if (!cfg.geminiKey || !cfg.geminiModel) toast('Añade tu clave y modelo de Gemini en Ajustes para traducir'); else onPosition(); }
+}
+
+/* ===== Traducciones acumuladas en la carpeta elegida ===== */
+const trcKeyFor = id => `trc_${id}_${cfg.sourceLanguage}_${cfg.targetLanguage}`;
+const trFileNameOf = name => String(name || 'contenido').replace(/\.[^.]+$/, '') + '.traducciones.json';
+let trWriteT, trPending = null;
+async function dirWritable(ask) {
+  if (!dirH) return false;
+  try {
+    let p = await dirH.queryPermission?.({ mode: 'readwrite' });
+    if (p !== 'granted' && ask) p = await dirH.requestPermission?.({ mode: 'readwrite' });
+    return p === 'granted';
+  } catch { return false; }
+}
+function trSections() {
+  const g = S.seg, tot = Math.max(1, g.total);
+  return g.list.map((s, i) => {
+    let done = 0; for (let b = s.from; b <= s.to; b++) if (S.paras[S.blocks[b].from]?.translation) done++;
+    return { n: i + 1, desde: Math.round(g.cum[s.from] / tot * 100), hasta: Math.round((g.cum[s.to] + S.blocks[s.to].letters) / tot * 100), parrafos: s.to - s.from + 1, traducidos: done, completa: g.state[i] === 'done' };
+  });
+}
+const trSnapshot = () => ({ name: S.file.name, cache: { ...S.trc }, order: S.blocks.map(b => b.text), secciones: trSections() });
+function scheduleTrFile() {
+  if (!dirH || !S.file || !S.seg) return;
+  const snap = trSnapshot(); clearTimeout(trWriteT); trWriteT = setTimeout(() => writeTrFile(snap), 400);
+}
+async function writeTrFile(snap, ask = false) {
+  if (!dirH) return false;
+  if (!(await dirWritable(ask))) { if (!trPending) toast('Para guardar las traducciones en la carpeta, pulsa Sincronizar en Ajustes y da permiso'); trPending = snap; return false; }
+  try {
+    const fh = await dirH.getFileHandle(trFileNameOf(snap.name), { create: true }), prev = new Map();
+    try {
+      const d = JSON.parse(await (await fh.getFile()).text());
+      if (d.origen === cfg.sourceLanguage && d.destino === cfg.targetLanguage) (d.traducciones || []).forEach(x => x?.texto && prev.set(x.texto, x.traduccion));
+    } catch {}
+    const all = new Map();
+    (snap.order || []).forEach(t => { const v = snap.cache[t] ?? prev.get(t); if (v) all.set(t, v); });
+    Object.entries(snap.cache).forEach(([t, v]) => all.set(t, v));
+    prev.forEach((v, t) => { if (!all.has(t)) all.set(t, v); });
+    const data = { version: 1, archivo: snap.name, origen: cfg.sourceLanguage, destino: cfg.targetLanguage, modelo: cfg.geminiModel, actualizado: new Date().toISOString(), secciones: snap.secciones, traducciones: [...all].map(([texto, traduccion]) => ({ texto, traduccion })) };
+    const w = await fh.createWritable(); await w.write(JSON.stringify(data, null, 1)); await w.close();
+    trPending = null; return true;
+  } catch { trPending = snap; toast('No se pudieron guardar las traducciones en la carpeta'); return false; }
+}
+async function loadTrFile() {
+  if (!dirH || !S.file) return;
+  try {
+    const d = JSON.parse(await (await (await dirH.getFileHandle(trFileNameOf(S.file.name))).getFile()).text());
+    if (d.origen !== cfg.sourceLanguage || d.destino !== cfg.targetLanguage) return;
+    let add = 0; (d.traducciones || []).forEach(x => { if (x?.texto && x.traduccion && !S.trc[x.texto]) { S.trc[x.texto] = x.traduccion; add++; } });
+    if (add) DB.meta.set(S.trcKey, S.trc);
+  } catch {}
+}
+// Escribe en la carpeta las traducciones ya hechas de toda la biblioteca (acumuladas por secciones).
+async function exportAllTranslations() {
+  if (!dirH || !(await dirWritable(true))) return 0;
+  let n = 0;
+  for (const m of S.files.filter(f => f.role === 'main')) {
+    if (S.file?.id === m.id && S.seg) continue;
+    const c = await DB.meta.get(trcKeyFor(m.id));
+    if (c && Object.keys(c).length && await writeTrFile({ name: m.name, cache: c, order: null })) n++;
+  }
+  if (S.file && S.seg && Object.keys(S.trc).length && await writeTrFile(trSnapshot(), true)) n++;
+  if (trPending) await writeTrFile(trPending, true);
+  return n;
+}
+async function reloadTranslations() {
+  S.trcKey = trcKeyFor(S.file.id); S.trc = (await DB.meta.get(S.trcKey)) || {}; await loadTrFile();
+  S.paras.forEach(p => { p.translation = ''; }); render();
+}
+
+/* ===== Gemini: prompts y salidas fijas ===== */
+const langName = c => `${c} (${LANGS[c] || c})`;
+const PROMPT_TR = (s, t) => `You are a translation engine. Translate every paragraph of the user's JSON array from ${langName(s)} to ${langName(t)}. Rules: translate each paragraph faithfully and naturally; keep the same order; output exactly one item per input item; never merge, split, skip or add paragraphs; no notes, no explanations. Output only the JSON object {"t":[...]} where t[i] is the translation of input paragraph i.`;
+const PROMPT_LK = (s, t) => `You translate a selected word or phrase from ${langName(s)} to ${langName(t)}. The user message is a JSON object with "selection" and "paragraph". Use the paragraph only to decide the meaning of the selection in context. Output only the translation of the selection itself, as the shortest natural ${langName(t)} word or phrase. Never include words that come before or after the selection, never repeat the source text, never explain. Output only the JSON object {"t":"..."}.`;
+const SCHEMA_TR = { type: 'OBJECT', properties: { t: { type: 'ARRAY', items: { type: 'STRING' } } }, required: ['t'] };
+const SCHEMA_LK = { type: 'OBJECT', properties: { t: { type: 'STRING' } }, required: ['t'] };
+async function gemini(system, user, schema) {
+  if (!cfg.geminiKey || !cfg.geminiModel) throw new Error('falta la clave o el modelo en Ajustes');
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.geminiModel)}:generateContent`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.geminiKey },
+    body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: schema } })
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error?.message || 'error ' + r.status);
+  const txt = (d.candidates?.[0]?.content?.parts || []).map(x => x.text || '').join('');
+  try { return JSON.parse(txt); } catch { throw new Error('respuesta no válida'); }
+}
+async function gemTranslate(texts) {
+  const out = await gemini(PROMPT_TR(cfg.sourceLanguage, cfg.targetLanguage), JSON.stringify(texts), SCHEMA_TR);
+  if (Array.isArray(out.t) && out.t.length === texts.length) return out.t.map(x => String(x || '').trim());
+  if (texts.length === 1 && Array.isArray(out.t)) return [String(out.t[0] || '').trim()];
+  const res = []; for (const t of texts) res.push((await gemTranslate([t]))[0]);
+  return res;
+}
+async function gemLookup(selection, paragraph) {
+  const out = await gemini(PROMPT_LK(cfg.sourceLanguage, cfg.targetLanguage), JSON.stringify({ selection, paragraph }), SCHEMA_LK);
+  return String(out.t || '').trim();
+}
+
+/* ===== Deepgram: transcripción con tiempos por palabra y voz ===== */
+const DG = 'https://api.deepgram.com/v1';
+const dgAuth = () => ({ Authorization: 'Token ' + cfg.deepgramKey });
+function wordsToCues(ws) {
+  const cues = []; let cur = [];
+  const flush = () => {
+    if (!cur.length) return;
+    const words = cur.map(w => ({ word: w.punctuated_word || w.word, start: +w.start, end: +w.end }));
+    cues.push(mk(words.map(w => w.word).join(' '), words[0].start, Math.max(words.at(-1).end, words[0].start + .1), { words })); cur = [];
+  };
+  ws.forEach((w, i) => {
+    cur.push(w); const t = w.punctuated_word || w.word, gap = ws[i + 1] ? ws[i + 1].start - w.end : 99;
+    if (gap > .8 || /[.!?…]$/.test(t) || cur.length >= 14 || w.end - cur[0].start > 7) flush();
+  });
+  flush(); return cues;
+}
+async function dgTranscribe(blob) {
+  const q = new URLSearchParams({ model: cfg.sttModel, language: cfg.sourceLanguage, smart_format: 'true', punctuate: 'true' });
+  const r = await fetch(`${DG}/listen?${q}`, { method: 'POST', headers: { ...dgAuth(), 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.err_msg || d.message || 'error ' + r.status);
+  return wordsToCues(d.results?.channels?.[0]?.alternatives?.[0]?.words || []);
+}
+const TTS = (() => {
+  let audio = null, run = 0, paused = false, finish = null, pre = null;
+  const split = t => {
+    const out = []; let cur = '';
+    for (const x of String(t).match(/[^.!?…。！？]+[.!?…。！？]*\s*/g) || [String(t)]) {
+      if (cur && (cur + x).length > 1500) { out.push(cur); cur = ''; }
+      cur += x; while (cur.length > 1500) { out.push(cur.slice(0, 1500)); cur = cur.slice(1500); }
+    }
+    if (cur.trim()) out.push(cur); return out;
+  };
+  const fetchAudio = async text => {
+    const r = await fetch(`${DG}/speak?model=${encodeURIComponent(cfg.ttsVoice)}`, { method: 'POST', headers: { ...dgAuth(), 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.err_msg || d.message || 'error ' + r.status); }
+    return URL.createObjectURL(await r.blob());
+  };
+  const native = text => new Promise(ok => {
+    if (!('speechSynthesis' in window)) return ok();
+    speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = cfg.sourceLanguage;
+    u.onend = u.onerror = ok; finish = ok; speechSynthesis.speak(u);
+  });
+  const stop = () => { run++; paused = false; audio?.pause(); audio = null; if ('speechSynthesis' in window) speechSynthesis.cancel(); const f = finish; finish = null; f?.(); };
+  const play = async (text, nextText) => {
+    stop(); const id = run;
+    if (!(cfg.deepgramKey && cfg.ttsVoice)) { await native(text); return id === run; }
+    const parts = split(text); if (!parts.length) return true;
+    let next = pre?.text === parts[0] ? pre.p : fetchAudio(parts[0]); pre = null;
+    for (let i = 0; i < parts.length; i++) {
+      next.catch(() => {});
+      let url; try { url = await next; } catch (e) { if (id === run) toast('Voz Deepgram: ' + e.message); return false; }
+      if (id !== run) { URL.revokeObjectURL(url); return false; }
+      if (i + 1 < parts.length) next = fetchAudio(parts[i + 1]);
+      else if (nextText) { const n0 = split(nextText)[0]; if (n0) { pre = { text: n0, p: fetchAudio(n0) }; pre.p.catch(() => {}); } }
+      const a = audio = new Audio(url);
+      await new Promise(ok => { finish = ok; a.onended = a.onerror = ok; a.play().catch(ok); });
+      URL.revokeObjectURL(url);
+      if (id !== run) return false;
+    }
+    return true;
+  };
+  return {
+    play, stop, paused: () => paused,
+    pause: () => { paused = true; audio?.pause(); if ('speechSynthesis' in window) speechSynthesis.pause(); },
+    resume: () => { paused = false; audio?.play(); if ('speechSynthesis' in window) speechSynthesis.resume(); }
+  };
+})();
+function wordTime(w) {
+  const run = w.closest('.run'); if (!run) return null;
+  const p = S.paras[+run.dataset.i], t = p?.words?.[+w.dataset.k]?.start ?? p?.start;
+  return Number.isFinite(t) ? t : null;
+}
+function seekTo(t) {
+  if (S.kind === 'subs') {
+    const mx = S.paras.at(-1)?.end || t; S.subTime = Math.max(0, Math.min(mx, t)); sync(S.subTime);
+    $('#seek').value = S.subTime / mx * 1000; $('#tm').textContent = `${fmt(S.subTime)} / ${fmt(mx)}`;
+  } else if (S.kind === 'media') { V.currentTime = Math.max(0, t); V.play().catch(() => {}); }
+}
+
+/* ===== Modelos y voces: se piden a los servidores ===== */
+async function fetchGeminiModels(key) {
+  const list = []; let token = '';
+  do {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000${token ? '&pageToken=' + encodeURIComponent(token) : ''}`, { headers: { 'x-goog-api-key': key } });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error?.message || 'error ' + r.status);
+    list.push(...(d.models || [])); token = d.nextPageToken || '';
+  } while (token);
+  return list.filter(m => (m.supportedGenerationMethods || []).includes('generateContent') && !/tts|image|imagen|veo|embed|live|native-audio|robotics|computer-use|aqa/i.test(m.name))
+    .map(m => { const id = m.name.replace(/^models\//, ''); return { id, label: (m.displayName || id) + ' · ' + id, langs: [] }; });
+}
+async function fetchDeepgramModels(key) {
+  let r;
+  try { r = await fetch(DG + '/models', { headers: { Authorization: 'Token ' + key } }); }
+  catch (e) { throw new Error('no hay conexión con api.deepgram.com (red, bloqueo CORS o política de seguridad del sitio que aloja la app)'); }
+  const txt = await r.text(); let d = {}; try { d = JSON.parse(txt); } catch {}
+  if (!r.ok) throw new Error(`HTTP ${r.status}${d.err_code ? ' ' + d.err_code : ''} ${d.err_msg || d.message || txt.slice(0, 120)}`.trim());
+  let stt = Array.isArray(d.stt) ? d.stt : [], tts = Array.isArray(d.tts) ? d.tts : [];
+  if (!stt.length && !tts.length && Array.isArray(d.models)) { tts = d.models.filter(x => /aura/i.test(x.canonical_name || x.name || '')); stt = d.models.filter(x => !tts.includes(x)); }
+  if (!stt.length && !tts.length) throw new Error('el servidor respondió sin modelos: ' + txt.slice(0, 120));
+  const uniq = (xs, f) => { const m = new Map(); xs.forEach(x => { const id = x.canonical_name || x.name; if (id && !m.has(id)) m.set(id, f(x, id)); }); return [...m.values()]; };
+  const langs = x => (Array.isArray(x.languages) ? x.languages : []).map(String);
+  return {
+    stt: uniq(stt, (x, id) => ({ id, label: id, langs: langs(x) })),
+    tts: uniq(tts, (x, id) => ({ id, label: [x.name, x.metadata?.accent, x.metadata?.gender].filter(Boolean).join(' · ') + ` (${id})`, langs: langs(x) }))
+  };
+}
+const byLang = (items, src) => { const f = items.filter(i => !i.langs.length || i.langs.some(l => l === 'multi' || l === src || l.startsWith(src + '-'))); return f.length ? f : items; };
+function fillSelect(sel, items, cur, empty, prefer) {
+  sel.replaceChildren(); if (!items.length) { sel.append(new Option(empty, '')); return; }
+  items.forEach(i => sel.append(new Option(i.label, i.id)));
+  sel.value = items.some(i => i.id === cur) ? cur : (prefer && items.find(i => prefer.test(i.id))?.id) || items[0].id;
+}
+function renderModelSelects() {
+  const M = load('bunnyling_models', { gem: [], stt: [], tts: [] }), src = $('#c-src').value;
+  fillSelect($('#m-gem'), M.gem, cfg.geminiModel, 'Carga los modelos con tu clave', /flash/);
+  fillSelect($('#m-stt'), byLang(M.stt, src), cfg.sttModel, 'Carga los modelos con tu clave');
+  fillSelect($('#m-tts'), byLang(M.tts, src), cfg.ttsVoice, 'Carga las voces con tu clave');
+}
+async function loadModels() {
+  const st = $('#m-status'), M = load('bunnyling_models', { gem: [], stt: [], tts: [] }), out = [];
+  const clean = k => String(k || '').replace(/^(Token|Bearer)\s+/i, '').replace(/["'\s]/g, '');
+  cfg.geminiKey = clean($('#k-gem').value); cfg.deepgramKey = clean($('#k-dg').value);
+  $('#k-gem').value = cfg.geminiKey; $('#k-dg').value = cfg.deepgramKey;
+  st.textContent = 'Consultando servidores…';
+  if (cfg.geminiKey) { try { M.gem = await fetchGeminiModels(cfg.geminiKey); out.push(`Gemini ✓ ${M.gem.length} modelos`); } catch (e) { out.push('Gemini ✗ ' + e.message); } }
+  else { M.gem = []; out.push('Gemini: sin clave'); }
+  if (cfg.deepgramKey) { try { Object.assign(M, await fetchDeepgramModels(cfg.deepgramKey)); out.push(`Deepgram ✓ ${M.stt.length} modelos y ${M.tts.length} voces`); } catch (e) { out.push('Deepgram ✗ ' + e.message); } }
+  else { M.stt = []; M.tts = []; out.push('Deepgram: sin clave'); }
+  save('bunnyling_models', M); renderModelSelects();
+  Object.assign(cfg, { geminiModel: $('#m-gem').value, sttModel: $('#m-stt').value, ttsVoice: $('#m-tts').value });
+  save('bunnyling_settings', cfg);
+  st.textContent = out.join(' · ');
+}
+
+/* Wire Controls */
+for (const id of ['#c-src', '#c-tgt']) for (const [k, v] of Object.entries(LANGS)) $(id).append(new Option(v, k));
+$('#c-src').value = cfg.sourceLanguage; $('#c-tgt').value = cfg.targetLanguage; $('#c-sk').value = cfg.skip;
+$$('nav button').forEach(b => b.onclick = () => show(b.dataset.v));
+$('#imp').onclick = () => $('#fi').click();
+$('#fi').onchange = async e => {
+  let last;
+  for (const f of e.target.files) {
+    const kind = KIND[f.name.split('.').pop().toLowerCase()]; if (!kind) continue;
+    last = { id: crypto.randomUUID(), groupId: crypto.randomUUID(), role: 'main', name: f.name, size: f.size, kind, blob: f, lastOpened: Date.now() };
+    await DB.put(last);
+  }
+  S.files = await DB.all(); if (last) openItem(last); e.target.value = '';
+};
+$('#si').onchange = async e => {
+  const f = e.target.files[0], gid = S.addTo || S.file?.groupId; e.target.value = '';
+  if (!f || !gid) return;
+  const ext = f.name.split('.').pop().toLowerCase();
+  const sup = { id: crypto.randomUUID(), groupId: gid, role: 'supplement', name: f.name, size: f.size, kind: ext === 'txt' ? 'txt' : ext === 'json' ? 'json' : 'subs', blob: f, lastOpened: Date.now() };
+  await DB.put(sup); S.files = await DB.all();
+  const main = S.files.find(x => x.groupId === gid && x.role === 'main');
+  if (main) openItem(main, sup);
+};
+
+V.ontimeupdate = () => {
+  if (V.duration) $('#seek').value = V.currentTime / V.duration * 1000;
+  $('#tm').textContent = `${fmt(V.currentTime)} / ${fmt(V.duration)}`;
+  sync(V.currentTime);
+};
+V.onplay = () => { clearTimeout(S.confuse.pauseTimer); $('#pp').textContent = '⏸'; };
+V.onpause = () => {
+  $('#pp').textContent = '▶';
+  if (S.confuse.revealing) S.confuse.pauseTimer = setTimeout(() => { S.confuse.revealing = false; document.body.classList.remove('confuse-reveal'); renderConfuseTimeline(); }, 8000);
+};
+$('#pp').onclick = () => S.kind === 'subs' ? toggleSubClock() : (V.paused ? V.play().catch(() => {}) : V.pause());
+$('#bk').onclick = () => {
+  const sk = +cfg.skip || 15;
+  if (S.kind === 'subs') { S.subTime = Math.max(0, S.subTime - sk); sync(S.subTime); $('#tm').textContent = `${fmt(S.subTime)} / ${fmt(S.paras.at(-1)?.end || 0)}`; }
+  else V.currentTime = Math.max(0, V.currentTime - sk);
+};
+$('#fw').onclick = () => {
+  const sk = +cfg.skip || 15;
+  if (S.kind === 'subs') { const mx = S.paras.at(-1)?.end || 0; S.subTime = Math.min(mx, S.subTime + sk); sync(S.subTime); $('#tm').textContent = `${fmt(S.subTime)} / ${fmt(mx)}`; }
+  else V.currentTime = Math.min(V.duration || 1e9, V.currentTime + sk);
+};
+$('#seek').oninput = e => {
+  if (S.kind === 'subs') { const mx = S.paras.at(-1)?.end || 0; S.subTime = e.target.value / 1000 * mx; sync(S.subTime); $('#tm').textContent = `${fmt(S.subTime)} / ${fmt(mx)}`; }
+  else if (V.duration) V.currentTime = e.target.value / 1000 * V.duration;
+};
+$('#subs-goto').onclick = () => {
+  const sec = toSec($('#subs-time').value);
+  if (!Number.isFinite(sec) || sec < 0) return toast('Tiempo inválido (usa HH:MM:SS)');
+  const mx = S.paras.at(-1)?.end || sec;
+  S.subTime = Math.min(mx, sec); sync(S.subTime);
+  if (mx) $('#seek').value = S.subTime / mx * 1000;
+  $('#tm').textContent = `${fmt(S.subTime)} / ${fmt(mx)}`;
+};
+$('#spd').onclick = e => { const s = [1, 1.25, 1.5, 2], n = s[(s.indexOf(V.playbackRate) + 1) % 4] || 1; V.playbackRate = n; e.target.textContent = n + 'x'; };
+$('#pv').onclick = () => drawPdfPage(S.page - 1);
+$('#nx').onclick = () => drawPdfPage(S.page + 1);
+
+$('#cc').onmousedown = e => e.preventDefault();
+$('#cc').onclick = () => {
+  S.sel = captureCueSelection();
+  const sl = $('#sl'); sl.replaceChildren();
+  S.files.filter(f => f.groupId === S.file?.groupId && f.role === 'supplement').forEach(s => {
+    const b = el('button', 'opt' + (s.id === S.supId ? ' sel' : ''), s.name);
+    b.onclick = async () => { await applySup(s); $('#sd').close(); };
+    sl.append(b);
+  });
+  $('#e-rep').disabled = $('#e-mrg').disabled = !S.sel;
+  $('#e-un').disabled = !S.undo.length; $('#e-re').disabled = !S.redo.length;
+  $('#sd').showModal();
+};
+$('#su').onclick = () => { $('#sd').close(); S.addTo = S.file?.groupId; $('#si').click(); };
+$('#ai').onclick = async () => {
+  if (!S.file?.blob) return;
+  $('#sd').close();
+  if (!cfg.deepgramKey || !cfg.sttModel) { show('settings'); return toast('Configura la clave y el modelo de Deepgram en Ajustes'); }
+  toast('Transcribiendo con Deepgram…');
+  try {
+    const cues = await dgTranscribe(S.file.blob); if (!cues.length) return toast('No se detectó voz');
+    const blob = new Blob([JSON.stringify(cues)], { type: 'application/json' });
+    const sup = { id: crypto.randomUUID(), groupId: S.file.groupId, role: 'supplement', name: 'Transcripción IA.json', size: blob.size, kind: 'json', blob, lastOpened: Date.now() };
+    await DB.put(sup); S.files = await DB.all(); await applySup(sup); toast('Transcripción activada');
+  } catch (e) { toast('Deepgram: ' + e.message); }
+};
+$('#e-rep').onclick = () => { if (!S.sel) return; $('#sd').close(); $('#edit-input').value = S.sel.txt; $('#edit-dlg').showModal(); };
+$('#edit-cancel').onclick = () => $('#edit-dlg').close();
+$('#edit-ok').onclick = async () => {
+  $('#edit-dlg').close(); if (!S.sel) return;
+  S.undo.push(structuredClone(S.paras)); S.redo = [];
+  const p = S.paras[S.sel.i];
+  p.text = (p.text.slice(0, S.sel.a) + $('#edit-input').value.trim() + p.text.slice(S.sel.b)).replace(/\s+/g, ' ').trim();
+  delete p.words; p.translation = '';
+  if (!p.text) S.paras.splice(S.sel.i, 1);
+  render(); await saveSubEdits(); toast('Subtítulo editado');
+};
+$('#e-mrg').onclick = async () => {
+  if (!S.sel || S.sel.i < 1) return; $('#sd').close();
+  S.undo.push(structuredClone(S.paras)); S.redo = [];
+  const p = S.paras[S.sel.i], pv = S.paras[S.sel.i - 1], cut = S.sel.b;
+  const ratio = cut / Math.max(1, p.text.length), tSplit = p.start + (p.end - p.start) * ratio;
+  pv.text = (pv.text + ' ' + p.text.slice(0, cut).trim()).trim(); pv.end = tSplit; delete pv.words; pv.translation = '';
+  p.text = p.text.slice(cut).trim(); p.start = tSplit; delete p.words; p.translation = '';
+  if (!p.text) S.paras.splice(S.sel.i, 1);
+  render(); await saveSubEdits(); toast('Unido al anterior');
+};
+$('#e-un').onclick = async () => { if (!S.undo.length) return; $('#sd').close(); S.redo.push(structuredClone(S.paras)); S.paras = S.undo.pop(); render(); await saveSubEdits(); };
+$('#e-re').onclick = async () => { if (!S.redo.length) return; $('#sd').close(); S.undo.push(structuredClone(S.paras)); S.paras = S.redo.pop(); render(); await saveSubEdits(); };
+$('#e-rst').onclick = async () => {
+  $('#sd').close();
+  const ed = S.files.find(f => f.role === 'edit' && f.forId === S.supId);
+  if (ed) { await DB.del(ed.id); S.files = await DB.all(); const orig = S.files.find(f => f.id === S.supId); if (orig) await applySup(orig); toast('Subtítulos originales restaurados'); }
+};
+$('#sx').onclick = () => $('#sd').close();
+$$('#md button').forEach(b => b.onclick = () => {
+  $('#sd').close(); setGlobalTr(b.dataset.m);
+});
+$('#tr-all').onclick = () => setGlobalTr(S.mode === 'bi' ? 'orig' : 'bi');
+
+/* Confusing Sections (🤔) */
+$('#confuse').onclick = () => {
+  if (S.confuse.markingStart === null) {
+    S.confuse.markingStart = V.currentTime; if (V.paused) V.play().catch(() => {});
+    $('#confuse').textContent = '🤔 Fin'; toast('Inicio marcado. Pulsa 🤔 al terminar la sección confusa');
+  } else {
+    const start = S.confuse.markingStart, end = Math.max(start + 1, V.currentTime); V.pause();
+    S.confuse.items.push({ id: crypto.randomUUID(), start, end }); S.confuse.markingStart = null;
+    $('#confuse').textContent = '🤔'; DB.meta.set('confuse_' + S.file?.id, S.confuse.items);
+    renderConfuseTimeline(); toast('Sección confusa guardada');
+  }
+};
+$('#c-reveal').onclick = () => {
+  $('#cdlg').close(); const it = S.confuse.items[S.confuse.selected]; if (!it) return;
+  S.confuse.revealing = true; document.body.classList.add('confuse-reveal');
+  V.currentTime = it.start; V.play().catch(() => {}); renderConfuseTimeline();
+};
+$('#c-remark').onclick = () => {
+  $('#cdlg').close(); S.confuse.items.splice(S.confuse.selected, 1);
+  DB.meta.set('confuse_' + S.file?.id, S.confuse.items);
+  S.confuse.markingStart = V.currentTime; $('#confuse').textContent = '🤔 Fin'; V.play().catch(() => {}); renderConfuseTimeline();
+};
+$('#c-delete').onclick = () => {
+  $('#cdlg').close(); S.confuse.items.splice(S.confuse.selected, 1); S.confuse.selected = -1;
+  DB.meta.set('confuse_' + S.file?.id, S.confuse.items); renderConfuseTimeline();
+};
+$('#c-close').onclick = () => $('#cdlg').close();
+
+/* Document Translation & Narration */
+$('#ta').onclick = () => {
+  if (!S.paras.length) return;
+  if (!cfg.geminiKey || !cfg.geminiModel) { show('settings'); return toast('Configura la clave y el modelo de Gemini en Ajustes'); }
+  const si = S.seg?.of[Math.max(S.cur, 0)] ?? 0;
+  if (S.mode !== 'bi') setGlobalTr('bi');
+  [si, si + 1].forEach(i => { if (S.seg?.state[i] === 'fail') S.seg.state[i] = 'idle'; });
+  translateSeg(si, true);
+};
+async function speakNarrPara(idx) {
+  if (!S.narrOn || idx < 0 || idx >= S.paras.length) return stopNarr();
+  S.narrIdx = idx; $('#ntm').textContent = `${idx + 1}/${S.paras.length}`;
+  $('#nseek').value = S.paras.length > 1 ? (idx / (S.paras.length - 1)) * 1000 : 0;
+  $$('.p.on').forEach(n => n.classList.remove('on'));
+  const box = $(`.p[data-b="${idx}"]`); box?.classList.add('on'); box?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  setCur(idx); $('#n-play').textContent = '⏸';
+  const run = ++S.narrRun;
+  const finished = await TTS.play(S.paras[idx].text, S.paras[idx + 1]?.text);
+  if (finished && run === S.narrRun && S.narrOn) idx + 1 < S.paras.length ? speakNarrPara(idx + 1) : stopNarr();
+}
+function stopNarr() { S.narrOn = false; S.narrRun++; document.body.dataset.narr = '0'; TTS.stop(); }
+$('#doc-audio').onclick = () => { if (!S.paras.length) return; S.narrOn = true; document.body.dataset.narr = '1'; speakNarrPara(S.narrIdx || 0); };
+$('#n-prev').onclick = () => speakNarrPara(Math.max(0, S.narrIdx - 1));
+$('#n-next').onclick = () => speakNarrPara(Math.min(S.paras.length - 1, S.narrIdx + 1));
+$('#n-play').onclick = () => { if (TTS.paused()) { TTS.resume(); $('#n-play').textContent = '⏸'; } else { TTS.pause(); $('#n-play').textContent = '▶'; } };
+$('#n-stop').onclick = stopNarr;
+$('#nseek').oninput = e => { if (S.paras.length) speakNarrPara(Math.round((e.target.value / 1000) * (S.paras.length - 1))); };
+
+/* Search */
+$$('.find-btn').forEach(b => b.onclick = () => $('#fnd').showModal());
+$('#fx').onclick = () => $('#fnd').close();
+$('#fq').oninput = e => {
+  const q = e.target.value.trim().toLowerCase(), box = $('#fr'); box.replaceChildren();
+  if (!q) return;
+  S.paras.forEach((p, i) => {
+    if (p.text.toLowerCase().includes(q) || (p.translation || '').toLowerCase().includes(q)) {
+      const btn = el('button', 'opt', (S.kind === 'media' || S.kind === 'subs' ? `[${fmt(p.start)}] ` : '') + p.text);
+      btn.onclick = () => {
+        $('#fnd').close();
+        if (S.kind === 'media') V.currentTime = p.start;
+        else if (S.kind === 'subs') { S.subTime = p.start; sync(S.subTime); }
+        $(`.p[data-b="${p.b ?? i}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      };
+      box.append(btn);
+    }
+  });
+};
+
+/* Reading Marks (✂️, +x1, −x1) & Lookup (❓) */
+$('#mark').onclick = () => {
+  if (!S.paras.length) return toast('Abre un material primero');
+  S.markPhase = S.markPhase === 'idle' ? 'last' : 'idle';
+  S.markEnd = S.markStart = null;
+  $('#mk-hint').hidden = S.markPhase === 'idle';
+  $('#mk-hint').textContent = 'Toca la última palabra que has leído';
+  paintReadHistory();
+};
+function adjustSelectedWordsDelta(delta) {
+  const sel = getSelection(); if (!sel || !sel.rangeCount || sel.isCollapsed) return toast('Selecciona palabras en el texto primero');
+  const r = sel.getRangeAt(0), hit = historyWords().filter(w => r.intersectsNode(w));
+  sel.removeAllRanges(); if (!hit.length) return;
+  hit.forEach(w => { const v = Math.max(0, historyCount(w) + delta); if (!v) delete S.readCounts[w.dataset.hkey]; else S.readCounts[w.dataset.hkey] = v; });
+  DB.meta.set('readhist_' + S.file?.id, S.readCounts);
+  if (delta > 0) processParagraph(S.file?.id, hit.map(n => n.textContent.replace(/x\d+$/, '')).join(' '));
+  paintReadHistory();
+}
+$('#mk-plus').onclick = () => adjustSelectedWordsDelta(1);
+$('#mk-minus').onclick = () => adjustSelectedWordsDelta(-1);
+$$('.lk').forEach(b => {
+  b.onmousedown = e => e.preventDefault();
+  b.onclick = () => {
+    const raw = (getSelection()?.toString() || '').replace(/x\d+/g, '').trim();
+    if (!raw) return toast('Selecciona una palabra o frase primero');
+    const an = getSelection()?.anchorNode, pb = (an?.nodeType === 3 ? an.parentElement : an)?.closest?.('.p');
+    getSelection()?.removeAllRanges();
+    S.pick = { word: raw, key: normKey(raw), ctx: S.blocks[+pb?.dataset.b]?.text, t: null }; $('#p-seek').hidden = true;
+    $('#pw').textContent = raw; $('#pm').textContent = ''; $('#p-word-btns').hidden = false; $('#p-ask').hidden = /\s/.test(raw); $('#p-act').hidden = !/\s/.test(raw); $('#pop').hidden = false;
+  };
+});
+
+$('#text').onclick = e => {
+  if (e.target.closest('.trb, .segh')) return;
+  if (getSelection() && !getSelection().isCollapsed) return;
+  const w = e.target.closest('.rw');
+  if (S.markPhase === 'last' && w) { S.markEnd = w; $('#mkd').showModal(); return; }
+  if (S.markPhase === 'first' && w) {
+    const words = historyWords(), a = words.indexOf(w), b = words.indexOf(S.markEnd);
+    for (let i = Math.min(a, b); i <= Math.max(a, b); i++) S.readCounts[words[i].dataset.hkey] = (S.readCounts[words[i].dataset.hkey] || 0) + 1;
+    DB.meta.set('readhist_' + S.file?.id, S.readCounts);
+    processParagraph(S.file?.id, words.slice(Math.min(a, b), Math.max(a, b) + 1).map(n => n.textContent.replace(/x\d+$/, '')).join(' '));
+    S.markPhase = 'idle'; S.markEnd = null; $('#mk-hint').hidden = true; paintReadHistory(); return;
+  }
+  if (w) {
+    const word = w.textContent.replace(/x\d+$/, '').trim();
+    S.pick = { word, key: normKey(word), ctx: S.blocks[+w.closest('.p')?.dataset.b]?.text, t: wordTime(w) };
+    $('#p-seek').hidden = S.pick.t == null || !['media', 'subs'].includes(S.kind);
+    $('#pw').textContent = word; $('#pm').textContent = ''; $('#p-word-btns').hidden = false; $('#p-ask').hidden = false; $('#p-act').hidden = true; $('#pop').hidden = false;
+    return;
+  }
+  const box = e.target.closest('.p');
+  if (box && S.kind === 'media') { const bl = S.blocks[+box.dataset.b]; if (bl) V.currentTime = S.paras[bl.from].start; }
+};
+$('#mk-a').onclick = () => { $('#mkd').close(); S.markPhase = 'first'; $('#mk-hint').textContent = 'Ahora toca la primera palabra del fragmento'; };
+$('#mk-b').onclick = () => {
+  $('#mkd').close();
+  const words = historyWords(), endIdx = words.indexOf(S.markEnd);
+  let startIdx = 0;
+  for (let i = endIdx - 1; i >= 0; i--) if (historyCount(words[i]) > 0) { startIdx = i + 1; break; }
+  for (let i = startIdx; i <= endIdx; i++) S.readCounts[words[i].dataset.hkey] = (S.readCounts[words[i].dataset.hkey] || 0) + 1;
+  DB.meta.set('readhist_' + S.file?.id, S.readCounts);
+  processParagraph(S.file?.id, words.slice(startIdx, endIdx + 1).map(n => n.textContent.replace(/x\d+$/, '')).join(' '));
+  S.markPhase = 'idle'; S.markEnd = null; $('#mk-hint').hidden = true; paintReadHistory();
+};
+$('#mk-c').onclick = () => { $('#mkd').close(); S.markPhase = 'idle'; S.markEnd = null; $('#mk-hint').hidden = true; paintReadHistory(); };
+$('#p-x').onclick = $('#pc').onclick = () => $('#pop').hidden = true;
+$('#p-audio').onclick = () => { if (S.pick?.word) TTS.play(S.pick.word); };
+$('#p-seek').onclick = () => { if (S.pick?.t == null) return; $('#pop').hidden = true; seekTo(S.pick.t); };
+$('#p-dict').onclick = async () => {
+  if (!S.pick?.word) return;
+  $('#pm').textContent = 'Consultando diccionario…';
+  try {
+    const r = await fetch(`https://freedictionaryapi.com/api/v1/entries/${cfg.sourceLanguage}/${encodeURIComponent(S.pick.key)}?translations=true`);
+    const d = await r.json();
+    const trs = [];
+    (d.entries || []).forEach(en => (en.meanings || []).forEach(m => (m.translations || []).forEach(t => { if (String(t.language?.code || t.language).startsWith(cfg.targetLanguage)) trs.push(t.word); })));
+    if (trs.length) { $('#pm').textContent = [...new Set(trs)].slice(0, 6).join(', '); return; }
+    const wr = await fetch(`https://es.wiktionary.org/api/rest_v1/page/definition/${encodeURIComponent(S.pick.key)}`);
+    if (wr.ok) {
+      const wd = await wr.json(), defs = Object.values(wd).flat().flatMap(x => x.definitions || []).map(x => String(x.definition || '').replace(/<[^>]+>/g, '').trim()).filter(Boolean);
+      if (defs.length) { $('#pm').textContent = defs.slice(0, 3).join('\n• '); return; }
+    }
+    $('#pm').textContent = 'Sin entradas directas en el diccionario libre.';
+  } catch { $('#pm').textContent = 'Sin conexión al diccionario.'; }
+};
+$('#p-ai').onclick = async () => {
+  if (!S.pick?.word) return;
+  $('#pm').textContent = 'Traduciendo en contexto…';
+  try { $('#pm').textContent = (await gemLookup(S.pick.word, S.pick.ctx || S.pick.word)) || 'Sin resultado'; }
+  catch (e) { $('#pm').textContent = 'Gemini: ' + e.message; }
+};
+$('#p-no').onclick = () => {
+  if (!S.pick?.key) return;
+  let e = DICT.map.get(S.pick.key) || newEntry(S.pick.key, S.file?.id);
+  e.state = 'problematic'; e.cleanStreak = 0; e.manualOverride = false; DICT.map.set(S.pick.key, e); DICT.dirty.add(S.pick.key); scheduleFlush(); recolorKeys([S.pick.key]);
+  $('#p-ask').hidden = true; $('#p-act').hidden = false;
+};
+$('#p-yes').onclick = () => {
+  if (!S.pick?.key) return;
+  let e = DICT.map.get(S.pick.key) || newEntry(S.pick.key, S.file?.id);
+  e.state = 'known'; e.manualOverride = true; DICT.map.set(S.pick.key, e); DICT.dirty.add(S.pick.key); scheduleFlush(); recolorKeys([S.pick.key]);
+  $('#pop').hidden = true;
+};
+
+/* Dictionary & Folder Sync Controls */
+$$('#dfil button').forEach(b => b.onclick = () => { filtState = b.dataset.f; $$('#dfil button').forEach(x => x.classList.toggle('sel', x === b)); renderWords(); });
+$('#dsort').onchange = renderWords; $('#dq').oninput = renderWords;
+$('#d-reset').onclick = async () => {
+  const keep = [...DICT.map.values()].filter(e => e.manualOverride || e.state === 'problematic').map(e => ({ ...e, totalSeen: 0, cleanStreak: 0 }));
+  await DB.dict.clear(); await DB.dict.putMany(keep); await DB.meta.set('totalWordsProcessed', 0);
+  DICT.map = new Map(keep.map(e => [e.word, e])); DICT.total = 0; renderWords(); toast('Conteo reiniciado');
+};
+
+let dirH = null;
+async function syncDir() {
+  if (!dirH) return toast('Primero elige una carpeta local');
+  if (!(await dirWritable(true))) return toast('Permiso de carpeta denegado');
+  let added = 0; const existing = new Set(S.files.map(f => f.name));
+  for await (const [name, h] of dirH.entries()) {
+    if (h.kind !== 'file' || existing.has(name)) continue;
+    const kind = KIND[name.split('.').pop().toLowerCase()]; if (!kind || kind === 'subs') continue;
+    const f = await h.getFile();
+    await DB.put({ id: crypto.randomUUID(), groupId: crypto.randomUUID(), role: 'main', name, size: f.size, kind, blob: f, lastOpened: Date.now() });
+    added++;
+  }
+  S.files = await DB.all(); toast(added ? `${added} archivo(s) sincronizados` : 'Biblioteca al día');
+}
+$('#d-pick').onclick = async () => {
+  if (!window.showDirectoryPicker) return toast('Este navegador usa almacenamiento interno IndexedDB');
+  try { dirH = await showDirectoryPicker({ mode: 'readwrite' }); await DB.meta.set('dir', dirH); $('#dn').textContent = 'Carpeta: ' + dirH.name; await syncDir(); const n = await exportAllTranslations(); if (n) toast(`Traducciones de ${n} archivo(s) guardadas en la carpeta`); } catch {}
+};
+$('#d-sync').onclick = async () => { await syncDir(); const n = await exportAllTranslations(); if (n) toast(`Traducciones de ${n} archivo(s) guardadas en la carpeta`); };
+$('#d-off').onclick = async () => { dirH = null; await DB.meta.clear('dir'); $('#dn').textContent = 'Almacenamiento interno IndexedDB'; toast('Carpeta desvinculada'); };
+
+$('#s-new-btn').onclick = sessionStart;
+$('#k-gem').value = cfg.geminiKey; $('#k-dg').value = cfg.deepgramKey; renderModelSelects();
+$('#c-src').onchange = renderModelSelects; $('#m-load').onclick = loadModels;
+$('#c-save').onclick = async () => {
+  const gk = $('#k-gem').value.trim(), dk = $('#k-dg').value.trim(), changed = gk !== cfg.geminiKey || dk !== cfg.deepgramKey;
+  const pairChanged = $('#c-src').value !== cfg.sourceLanguage || $('#c-tgt').value !== cfg.targetLanguage;
+  cfg = { ...cfg, sourceLanguage: $('#c-src').value, targetLanguage: $('#c-tgt').value, skip: +$('#c-sk').value || 15, geminiKey: gk, deepgramKey: dk, geminiModel: $('#m-gem').value, sttModel: $('#m-stt').value, ttsVoice: $('#m-tts').value };
+  save('bunnyling_settings', cfg); toast('Preferencias guardadas');
+  if (changed && (gk || dk)) await loadModels();
+  if (pairChanged && S.file && S.paras.length) await reloadTranslations();
+};
+$('#nt').onclick = () => { const hide = !document.body.classList.contains('nonav'); document.body.classList.toggle('nonav', hide); $('#nt').textContent = hide ? '▲' : '▼'; };
+
+let instPrompt;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); instPrompt = e; $('#inst').hidden = false; });
+$('#inst').onclick = async () => { instPrompt?.prompt(); await instPrompt?.userChoice; instPrompt = null; $('#inst').hidden = true; };
+if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
+(async () => {
+  const allWords = await DB.dict.all(); allWords.forEach(e => DICT.map.set(e.word, e));
+  DICT.total = (await DB.meta.get('totalWordsProcessed')) || 0; DICT.loaded = true;
+  dirH = (await DB.meta.get('dir')) || null; if (dirH) $('#dn').textContent = 'Carpeta: ' + dirH.name;
+  SESSION.total = (await DB.meta.get('session_total')) || 0;
+  SESSION.dailyDate = (await DB.meta.get('session_daily_date')) || '';
+  SESSION.daily = (await DB.meta.get('session_daily_count')) || 0;
+  SESSION.log = (await DB.meta.get('session_log')) || [];
+  S.files = await DB.all();
+  await sessionStart();
+})();
+</script>
+</body>
+</html>
