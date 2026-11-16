@@ -2,7 +2,8 @@
 'use strict';
 
 // Sube la versión al cambiar el HTML/CSS/JS del shell para invalidar el caché viejo.
-// v3.2.0 — Deepgram pasa por Netlify Function del mismo origen; elimina CORS y relés públicos.
+// v3.3.0 — Historial de lectura compartido durante narración; audio y subtítulos generados se guardan también en IndexedDB y reaparecen en Biblioteca.
+//          Antes: v3.2.0 — Deepgram pasa por Netlify Function del mismo origen; elimina CORS y relés públicos.
 //          Antes: v3.1.0 — Narración: audio + subtítulos (.mp3/.srt) se guardan acumulativos en la carpeta de Ajustes; ⏪/⏩ de la barra de
 //          narración saltan los segundos configurados (no de párrafo en párrafo); modelos de Gemini y Deepgram y voces
 //          de Deepgram se piden siempre a los servidores (sin catálogo escrito en el HTML).
@@ -18,7 +19,7 @@
 //          lleva al minuto; ✂️ actúa al soltar (evita tocar +x1 por el cambio de layout).
 //          Antes: v2.6.3 — ✂️ sin subtítulos: marca por tiempo (final, luego inicio por barra o campo manual).
 //          Antes: v2.6.2 — 🤔 por toque con corte exacto, reubicado junto al % leído.
-const CACHE_VERSION = 'bunnyling-v3.2.0';
+const CACHE_VERSION = 'bunnyling-v3.3.0';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
